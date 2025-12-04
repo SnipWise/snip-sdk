@@ -26,7 +26,7 @@ func main() {
 		smart.EnableChatStreamFlowWithMemory(),
 	)
 
-	_ = agent0.AddContextToMessages("Philippe Charrière is a French Solutions Architect at Docker.")
+	_ = agent0.AddSystemMessage("Philippe Charrière is a French Solutions Architect at Docker.")
 
 	_, err := agent0.AskStream("Who is Philippe Charrière?",
 		func(chunk string) error {

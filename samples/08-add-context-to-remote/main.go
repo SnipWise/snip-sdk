@@ -64,7 +64,7 @@ func main() {
 	//
 	time.Sleep(2 * time.Second)
 
-	_ = remoteAgent.AddContextToMessages("Philippe Charrière is a French Solutions Architect at Docker.")
+	_ = remoteAgent.AddSystemMessage("Philippe Charrière is a French Solutions Architect at Docker.")
 
 	info, err := remoteAgent.GetInfo()
 	if err != nil {
@@ -100,4 +100,10 @@ func main() {
 	log.Printf("📊 Total response length: %d characters", len(fullResponse))
 	log.Println("")
 
+		log.Println("===")
+
+	//fmt.Println(remoteAgent.GetMessages())
+	for _, msg := range remoteAgent.GetMessages() {
+		fmt.Printf("Role: %s, Content: %v\n", msg.Role, msg.Content[0].Text)
+	}
 }

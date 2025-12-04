@@ -19,11 +19,14 @@ const (
 	// DefaultCancelStreamPath is the default endpoint path for canceling a streaming completion
 	DefaultCancelStreamPath = "/api/cancel-stream-completion"
 
-	// DefaultAddContextPath is the default endpoint path for adding context to messages
-	DefaultAddContextPath = "/api/add-context"
+	// DefaultAddSystemMessagePath is the default endpoint path for adding context to messages
+	DefaultAddSystemMessagePath = "/api/add-system-message"
 
 	// DefaultHealthcheckPath is the default endpoint path for healthcheck
 	DefaultHealthcheckPath = "/healthcheck"
+
+	// DefaultGetMessagesPath is the default endpoint path for retrieving conversation messages
+	DefaultGetMessagesPath = "/api/messages"
 )
 
 // ConfigHTTP holds the HTTP server configuration for exposing agent flows
@@ -59,6 +62,10 @@ type ConfigHTTP struct {
 	// HealthcheckPath is the endpoint path for healthcheck
 	// If empty, defaults to DefaultHealthcheckPath ("/healthcheck")
 	HealthcheckPath string
+
+	// GetMessagesPath is the endpoint path for retrieving conversation messages
+	// If empty, defaults to DefaultGetMessagesPath ("/api/messages")
+	GetMessagesPath string
 
 	// ChatFlowHandler is the HTTP handler for the standard chat flow endpoint
 	// If nil, will be auto-configured from the agent's chatFlow

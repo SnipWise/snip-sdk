@@ -11,7 +11,7 @@ type AIAgent interface {
 	GetMessages() []*ai.Message
 	GetInfo() (AgentInfo, error)
 	Kind() AgentKind
-	AddContextToMessages(context string) error
+	AddSystemMessage(context string) error
 }
 // TODO: add helpers to handle the messages
 

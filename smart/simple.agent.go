@@ -62,7 +62,7 @@ func (agent *Agent) Kind() AgentKind {
 	return Basic
 }
 
-func (agent *Agent) AddContextToMessages(context string) error {
+func (agent *Agent) AddSystemMessage(context string) error {
 	// Add a system message to the conversation history
 	agent.Messages = append(agent.Messages, ai.NewSystemTextMessage(strings.TrimSpace(context)))
 	return nil
@@ -131,6 +131,10 @@ func (agent *Agent) AskStream(question string, callback func(string) error) (str
 
 	finalAnswer := ""
 	for result := range streamCh {
+		// Check for nil result
+		if result == nil {
+			continue
+		}
 
 		if !result.Done {
 			finalAnswer += result.Stream
@@ -171,10 +175,13 @@ func (agent *Agent) Serve() error {
 		agent.serverConfig.CancelStreamPath = DefaultCancelStreamPath
 	}
 	if agent.serverConfig.AddContextPath == "" {
-		agent.serverConfig.AddContextPath = DefaultAddContextPath
+		agent.serverConfig.AddContextPath = DefaultAddSystemMessagePath
 	}
 	if agent.serverConfig.HealthcheckPath == "" {
 		agent.serverConfig.HealthcheckPath = DefaultHealthcheckPath
+	}
+	if agent.serverConfig.GetMessagesPath == "" {
+		agent.serverConfig.GetMessagesPath = DefaultGetMessagesPath
 	}
 
 	// Register healthcheck endpoint
@@ -281,7 +288,7 @@ func (agent *Agent) Serve() error {
 			}
 
 			// Add context to messages
-			if err := agent.AddContextToMessages(req.Context); err != nil {
+			if err := agent.AddSystemMessage(req.Context); err != nil {
 				log.Printf("[%s] Error adding context to messages: %v", agent.Name, err)
 				w.WriteHeader(http.StatusInternalServerError)
 				w.Write([]byte(`{"status":"error","message":"failed to add context"}`))
@@ -293,6 +300,25 @@ func (agent *Agent) Serve() error {
 			w.Write([]byte(`{"status":"success"}`))
 		})
 		log.Printf("[%s] Registered endpoint: POST %s", agent.Name, addContextPath)
+	}
+
+	// Register get messages endpoint
+	getMessagesPath := agent.serverConfig.GetMessagesPath
+	if getMessagesPath != "" {
+		mux.HandleFunc("GET "+getMessagesPath, func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+
+			// Encode messages to JSON
+			if err := json.NewEncoder(w).Encode(agent.Messages); err != nil {
+				log.Printf("[%s] Error encoding messages: %v", agent.Name, err)
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte(`{"status":"error","message":"failed to encode messages"}`))
+				return
+			}
+
+			log.Printf("[%s] Messages retrieved via HTTP endpoint", agent.Name)
+		})
+		log.Printf("[%s] Registered endpoint: GET %s", agent.Name, getMessagesPath)
 	}
 
 	agent.httpServer = &http.Server{

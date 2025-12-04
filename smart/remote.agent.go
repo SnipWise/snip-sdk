@@ -24,6 +24,7 @@ type RemoteAgent struct {
 	ChatEndPoint        string
 	InformationEndpoint string
 	AddContextEndpoint  string
+	GetMessagesEndpoint string
 	Name                string
 }
 
@@ -40,7 +41,13 @@ func NewRemoteAgent(name string, config ConfigHTTP) *RemoteAgent {
 	// Set default add context path if not provided
 	addContextPath := config.AddContextPath
 	if addContextPath == "" {
-		addContextPath = DefaultAddContextPath
+		addContextPath = DefaultAddSystemMessagePath
+	}
+
+	// Set default get messages path if not provided
+	getMessagesPath := config.GetMessagesPath
+	if getMessagesPath == "" {
+		getMessagesPath = DefaultGetMessagesPath
 	}
 
 	return &RemoteAgent{
@@ -48,6 +55,7 @@ func NewRemoteAgent(name string, config ConfigHTTP) *RemoteAgent {
 		ChatEndPoint:        baseURL + config.ChatFlowPath,
 		InformationEndpoint: baseURL + informationPath,
 		AddContextEndpoint:  baseURL + addContextPath,
+		GetMessagesEndpoint: baseURL + getMessagesPath,
 		Name:                name,
 	}
 }
@@ -60,7 +68,7 @@ func (agent *RemoteAgent) Kind() AgentKind {
 	return Remote
 }
 
-func (agent *RemoteAgent) AddContextToMessages(context string) error {
+func (agent *RemoteAgent) AddSystemMessage(context string) error {
 	// Prepare request
 	reqBody := struct {
 		Context string `json:"context"`
@@ -132,8 +140,42 @@ func (agent *RemoteAgent) GetInfo() (AgentInfo, error) {
 }
 
 func (agent *RemoteAgent) GetMessages() []*ai.Message {
-	// TODO: Implement if needed
-	return nil
+	// Create HTTP GET request to get messages endpoint
+	req, err := http.NewRequest("GET", agent.GetMessagesEndpoint, nil)
+	if err != nil {
+		fmt.Printf("Error creating request: %v\n", err)
+		return nil
+	}
+
+	// Execute the request
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Printf("Error during HTTP call: %v\n", err)
+		return nil
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		fmt.Printf("HTTP error: status code %d\n", resp.StatusCode)
+		return nil
+	}
+
+	// Read the response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Printf("Error reading response body: %v\n", err)
+		return nil
+	}
+
+	// Parse JSON response into []*ai.Message
+	var messages []*ai.Message
+	if err := json.Unmarshal(body, &messages); err != nil {
+		fmt.Printf("Error parsing JSON response: %v\n", err)
+		return nil
+	}
+
+	return messages
 }
 
 func (agent *RemoteAgent) Ask(question string) (string, error) {
