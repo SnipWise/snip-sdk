@@ -14,8 +14,8 @@ func main() {
 
 	ctx := context.Background()
 	engineURL := env.GetEnvOrDefault("MODEL_RUNNER_BASE_URL", "http://localhost:12434/engines/llama.cpp/v1")
-	//chatModelId := env.GetEnvOrDefault("CHAT_MODEL", "hf.co/menlo/lucy-gguf:q4_k_m")
-	chatModelId := env.GetEnvOrDefault("CHAT_MODEL", "ai/qwen2.5:latest")
+	chatModelId := env.GetEnvOrDefault("CHAT_MODEL", "hf.co/menlo/lucy-gguf:q4_k_m")
+	//chatModelId := env.GetEnvOrDefault("CHAT_MODEL", "ai/qwen2.5:latest")
 
 	systemInstructions, err := files.ReadTextFile(env.GetEnvOrDefault("SYSTEM_INSTRUCTION_PATH", "./system-instructions.md"))
 	if err != nil {
@@ -53,8 +53,11 @@ func main() {
 
 	fmt.Println("\n--- Adding knowledge base context ---")
 
-	_ = agent0.AddSystemMessage(knowledgeBase)
-
+	err = agent0.AddSystemMessage(knowledgeBase)
+	if err != nil {
+		fmt.Printf("Error adding system message: %v\n", err)
+		return
+	}
 	_, err = agent0.AskStream("Who invented Hawaiian pizza?",
 		func(chunk string) error {
 			fmt.Print(chunk)
@@ -65,8 +68,6 @@ func main() {
 		fmt.Printf("Error asking question: %v\n", err)
 		return
 	}
-	// for _, msg := range agent0.GetMessages() {
-	// 	fmt.Printf("Role: %s, Content: %v\n", msg.Role, msg.Content[0].Text)
-	// }
+	fmt.Println()
 
 }

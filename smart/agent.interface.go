@@ -16,13 +16,13 @@ type AIAgent interface {
 // TODO: add helpers to handle the messages
 
 // TODO:
-type IntentTraits interface {
-	// AIAgent
-	// DetermineIntent(question string) (string, error)
-}
+// type IntentTraits interface {
+// 	// AIAgent
+// 	// DetermineIntent(question string) (string, error)
+// }
 
 // TODO:
-type RagTraits interface {
-	// AIAgent
-	// RetrieveRelevantDocuments(question string) ([]Document, error)
-}
+// type RagTraits interface {
+// 	// AIAgent
+// 	// RetrieveRelevantDocuments(question string) ([]Document, error)
+// }

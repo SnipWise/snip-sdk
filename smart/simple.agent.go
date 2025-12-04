@@ -130,8 +130,13 @@ func (agent *Agent) AskStream(question string, callback func(string) error) (str
 	})
 
 	finalAnswer := ""
-	for result := range streamCh {
-		// Check for nil result
+	for result, err := range streamCh {
+		// Check for errors from the stream
+		if err != nil {
+			return "", fmt.Errorf("streaming error: %w", err)
+		}
+
+		// Check for nil result (defensive programming)
 		if result == nil {
 			continue
 		}
