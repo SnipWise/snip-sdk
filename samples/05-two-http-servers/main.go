@@ -15,11 +15,13 @@ func main() {
 
 	// Create an agentOne with both chat flows enabled and HTTP server configuration
 	agentOne := smart.NewAgent(ctx,
-		"HTTP_Agent_1",
-		"You are a helpful assistant.",
-		chatModelId,
-		engineURL,
-		smart.Config{
+		smart.AgentConfig{
+			Name:               "HTTP_Agent_1",
+			SystemInstructions: "You are a helpful assistant.",
+			ModelID:            chatModelId,
+			EngineURL:          engineURL,
+		},
+		smart.ModelConfig{
 			Temperature: 0.5,
 			TopP:        0.9,
 		},
@@ -36,11 +38,13 @@ func main() {
 	)
 
 	agentTwo := smart.NewAgent(ctx,
-		"HTTP_Agent_2",
-		"You are a helpful assistant.",
-		chatModelId,
-		engineURL,
-		smart.Config{
+		smart.AgentConfig{
+			Name:               "HTTP_Agent_2",
+			SystemInstructions: "You are a helpful assistant.",
+			ModelID:            chatModelId,
+			EngineURL:          engineURL,
+		},
+		smart.ModelConfig{
 			Temperature: 0.5,
 			TopP:        0.9,
 		},

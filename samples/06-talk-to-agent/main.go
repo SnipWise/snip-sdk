@@ -17,11 +17,13 @@ func main() {
 	chatModelId := env.GetEnvOrDefault("CHAT_MODEL", "ai/qwen2.5:0.5B-F16")
 	// Create an agentOne with both chat flows enabled and HTTP server configuration
 	agentOne := smart.NewAgent(ctx,
-		"AGENT_ONE",
-		"You are a helpful assistant.",
-		chatModelId,
-		engineURL,
-		smart.Config{
+		smart.AgentConfig{
+			Name:               "AGENT_ONE",
+			SystemInstructions: "You are a helpful assistant.",
+			ModelID:            chatModelId,
+			EngineURL:          engineURL,
+		},
+		smart.ModelConfig{
 			Temperature: 0.5,
 			TopP:        0.9,
 		},

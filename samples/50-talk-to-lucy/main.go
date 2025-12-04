@@ -29,11 +29,13 @@ func main() {
 	}
 
 	agent0 := smart.NewAgent(ctx,
-		"Bob_Agentic_Agent",
-		systemInstructions,
-		chatModelId,
-		engineURL,
-		smart.Config{
+		smart.AgentConfig{
+			Name:               "Bob_Agentic_Agent",
+			SystemInstructions: systemInstructions,
+			ModelID:            chatModelId,
+			EngineURL:          engineURL,
+		},
+		smart.ModelConfig{
 			Temperature: 0.5,
 			TopP:        0.9,
 		},

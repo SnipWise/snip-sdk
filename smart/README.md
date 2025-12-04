@@ -30,11 +30,13 @@ func main() {
     // Create a simple agent
     agent := smart.NewAgent(
         ctx,
-        "my-assistant",                                        // Agent name
-        "You are a helpful AI assistant",                      // System instructions
-        "hf.co/menlo/jan-nano-gguf:q4_k_m",                    // Model ID
-        "http://localhost:12434/engines/llama.cpp/v1",         // Engine URL (Docker Model Runner)
-        smart.Config{
+        smart.AgentConfig{
+            Name:               "my-assistant",
+            SystemInstructions: "You are a helpful AI assistant",
+            ModelID:            "hf.co/menlo/jan-nano-gguf:q4_k_m",
+            EngineURL:          "http://localhost:12434/engines/llama.cpp/v1",
+        },
+        smart.ModelConfig{
             Temperature: 0.7,
             MaxTokens:   500,
         },
@@ -68,11 +70,13 @@ func main() {
 
     agent := smart.NewAgent(
         ctx,
-        "streaming-assistant",
-        "You are a helpful AI assistant",
-        "hf.co/menlo/jan-nano-gguf:q4_k_m",
-        "http://localhost:12434/engines/llama.cpp/v1",  // Docker Model Runner
-        smart.Config{Temperature: 0.7},
+        smart.AgentConfig{
+            Name:               "streaming-assistant",
+            SystemInstructions: "You are a helpful AI assistant",
+            ModelID:            "hf.co/menlo/jan-nano-gguf:q4_k_m",
+            EngineURL:          "http://localhost:12434/engines/llama.cpp/v1",
+        },
+        smart.ModelConfig{Temperature: 0.7},
         smart.EnableChatStreamFlowWithMemory(),  // Enable streaming with memory
     )
 
@@ -104,11 +108,13 @@ func main() {
 
     agent := smart.NewAgent(
         ctx,
-        "http-agent",
-        "You are a helpful AI assistant",
-        "hf.co/menlo/jan-nano-gguf:q4_k_m",
-        "http://localhost:12434/engines/llama.cpp/v1",  // Docker Model Runner
-        smart.Config{
+        smart.AgentConfig{
+            Name:               "http-agent",
+            SystemInstructions: "You are a helpful AI assistant",
+            ModelID:            "hf.co/menlo/jan-nano-gguf:q4_k_m",
+            EngineURL:          "http://localhost:12434/engines/llama.cpp/v1",
+        },
+        smart.ModelConfig{
             Temperature: 0.7,
             TopP:        0.9,
         },
@@ -153,6 +159,105 @@ curl http://localhost:8080/healthcheck
 curl -X POST http://localhost:8080/server/shutdown
 ```
 
+### Remote Agent (Client)
+
+Connect to a remote agent server and interact with it programmatically.
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+    "time"
+    "github.com/snipwise/snip-sdk/smart"
+)
+
+func main() {
+    ctx := context.Background()
+    engineURL := "http://localhost:12434/engines/llama.cpp/v1"
+    chatModelId := "hf.co/menlo/jan-nano-gguf:q4_k_m"
+
+    // Create a local agent with HTTP server
+    agent := smart.NewAgent(
+        ctx,
+        smart.AgentConfig{
+            Name:               "Server Agent",
+            SystemInstructions: "You are a helpful assistant.",
+            ModelID:            chatModelId,
+            EngineURL:          engineURL,
+        },
+        smart.ModelConfig{
+            Temperature: 0.7,
+            TopP:        0.9,
+        },
+        smart.EnableChatFlowWithMemory(),
+        smart.EnableChatStreamFlowWithMemory(),
+        smart.EnableServer(smart.ConfigHTTP{
+            Address:            "0.0.0.0:9100",
+            ChatFlowPath:       "/api/chat",
+            ChatStreamFlowPath: "/api/chat-stream",
+            InformationPath:    "/api/information",
+        }),
+    )
+
+    // Start server in background
+    go func() {
+        if err := agent.Serve(); err != nil {
+            log.Fatalf("Server error: %v", err)
+        }
+    }()
+
+    // Wait for server to start
+    time.Sleep(2 * time.Second)
+
+    // Create a remote agent client
+    remoteAgent := smart.NewRemoteAgent(
+        "Remote Client",
+        smart.ConfigHTTP{
+            Address:            "0.0.0.0:9100",
+            ChatFlowPath:       "/api/chat",
+            ChatStreamFlowPath: "/api/chat-stream",
+            InformationPath:    "/api/information",
+        },
+    )
+
+    // Get agent information
+    info, err := remoteAgent.GetInfo()
+    if err != nil {
+        log.Fatal(err)
+    }
+    fmt.Printf("Connected to: %s (Model: %s)\n", info.Name, info.ModelID)
+
+    // Ask a question
+    answer, err := remoteAgent.Ask("What is Go?")
+    if err != nil {
+        log.Fatal(err)
+    }
+    fmt.Println("Answer:", answer)
+
+    // Stream a response
+    _, err = remoteAgent.AskStream("Explain goroutines", func(chunk string) error {
+        fmt.Print(chunk)
+        return nil
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // Add context
+    err = remoteAgent.AddSystemMessage("The user is a beginner programmer.")
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // Get conversation history
+    messages := remoteAgent.GetMessages()
+    fmt.Printf("\nTotal messages: %d\n", len(messages))
+}
+```
+
 ## Core Types
 
 ### Agent
@@ -164,17 +269,30 @@ type Agent struct {
     Name               string
     SystemInstructions string
     ModelID            string
-    Config             Config
+    Config             ModelConfig
     Messages           []*ai.Message
 }
 ```
 
-### Config
+### AgentConfig
+
+Configuration for creating an agent.
+
+```go
+type AgentConfig struct {
+    Name               string  // Agent identifier
+    SystemInstructions string  // Agent's behavior and role
+    ModelID            string  // Language model to use
+    EngineURL          string  // Model inference engine base URL
+}
+```
+
+### ModelConfig
 
 Configuration for the LLM model behavior.
 
 ```go
-type Config struct {
+type ModelConfig struct {
     Temperature      float64   // Randomness (0.0-2.0)
     TopP             float64   // Nucleus sampling (0.0-1.0)
     MaxTokens        int64     // Maximum tokens to generate
@@ -185,7 +303,44 @@ type Config struct {
 }
 ```
 
+### RemoteAgent
+
+Client for connecting to a remote agent server.
+
+```go
+type RemoteAgent struct {
+    Name                string  // Client identifier
+    ChatStreamEndpoint  string  // Full URL for streaming chat
+    ChatEndPoint        string  // Full URL for standard chat
+    InformationEndpoint string  // Full URL for agent information
+    AddContextEndpoint  string  // Full URL for adding context
+    GetMessagesEndpoint string  // Full URL for getting messages
+}
+```
+
+**Constructor:**
+
+```go
+func NewRemoteAgent(name string, config ConfigHTTP) *RemoteAgent
+```
+
+**Example:**
+
+```go
+remoteAgent := smart.NewRemoteAgent(
+    "My Remote Client",
+    smart.ConfigHTTP{
+        Address:            "0.0.0.0:9100",
+        ChatFlowPath:       "/api/chat",
+        ChatStreamFlowPath: "/api/chat-stream",
+        InformationPath:    "/api/information",
+    },
+)
+```
+
 ### AIAgent Interface
+
+Both `Agent` and `RemoteAgent` implement the `AIAgent` interface.
 
 ```go
 type AIAgent interface {
@@ -253,12 +408,18 @@ smart.EnableServer(smart.ConfigHTTP{
 
 ## Agent Methods
 
+These methods are available for both `Agent` and `RemoteAgent` (they implement the `AIAgent` interface).
+
 ### Ask
 
 Send a message and get a complete response.
 
 ```go
+// Local agent
 answer, err := agent.Ask("What is 2+2?")
+
+// Remote agent
+answer, err := remoteAgent.Ask("What is 2+2?")
 ```
 
 ### AskStream
@@ -266,7 +427,14 @@ answer, err := agent.Ask("What is 2+2?")
 Stream the response chunk by chunk.
 
 ```go
+// Local agent
 fullAnswer, err := agent.AskStream("Explain AI", func(chunk string) error {
+    fmt.Print(chunk)
+    return nil
+})
+
+// Remote agent
+fullAnswer, err := remoteAgent.AskStream("Explain AI", func(chunk string) error {
     fmt.Print(chunk)
     return nil
 })
@@ -277,7 +445,11 @@ fullAnswer, err := agent.AskStream("Explain AI", func(chunk string) error {
 Add context to the conversation.
 
 ```go
+// Local agent
 err := agent.AddSystemMessage("The user prefers concise answers.")
+
+// Remote agent (sends HTTP request to the server)
+err := remoteAgent.AddSystemMessage("The user prefers concise answers.")
 ```
 
 ### GetMessages
@@ -285,7 +457,14 @@ err := agent.AddSystemMessage("The user prefers concise answers.")
 Get the conversation history.
 
 ```go
+// Local agent (returns from memory)
 messages := agent.GetMessages()
+for _, msg := range messages {
+    fmt.Printf("%s: %s\n", msg.Role, msg.Content[0].Text)
+}
+
+// Remote agent (fetches from server via HTTP)
+messages := remoteAgent.GetMessages()
 for _, msg := range messages {
     fmt.Printf("%s: %s\n", msg.Role, msg.Content[0].Text)
 }
@@ -296,8 +475,15 @@ for _, msg := range messages {
 Get agent information.
 
 ```go
+// Local agent
 info, err := agent.GetInfo()
 fmt.Printf("Agent: %s, Model: %s\n", info.Name, info.ModelID)
+fmt.Printf("Temperature: %.2f, TopP: %.2f\n", info.Config.Temperature, info.Config.TopP)
+
+// Remote agent (fetches from server)
+info, err := remoteAgent.GetInfo()
+fmt.Printf("Agent: %s, Model: %s\n", info.Name, info.ModelID)
+fmt.Printf("Temperature: %.2f, TopP: %.2f\n", info.Config.Temperature, info.Config.TopP)
 ```
 
 ## HTTP Server Endpoints
@@ -335,11 +521,13 @@ func main() {
     // Create an agent with custom configuration
     agent := smart.NewAgent(
         ctx,
-        "tutor-bot",
-        "You are a patient and knowledgeable tutor who explains concepts clearly.",
-        "hf.co/menlo/jan-nano-gguf:q4_k_m",
-        "http://localhost:12434/engines/llama.cpp/v1",  // Docker Model Runner
-        smart.Config{
+        smart.AgentConfig{
+            Name:               "tutor-bot",
+            SystemInstructions: "You are a patient and knowledgeable tutor who explains concepts clearly.",
+            ModelID:            "hf.co/menlo/jan-nano-gguf:q4_k_m",
+            EngineURL:          "http://localhost:12434/engines/llama.cpp/v1",
+        },
+        smart.ModelConfig{
             Temperature:      0.8,
             MaxTokens:        1000,
             FrequencyPenalty: 0.5,
@@ -376,6 +564,41 @@ func main() {
     messages := agent.GetMessages()
     fmt.Printf("\n📚 Total messages in history: %d\n", len(messages))
 }
+```
+
+## Remote Agent Use Cases
+
+The `RemoteAgent` is useful for:
+
+1. **Microservices Architecture**: Connect to AI agents running as separate services
+2. **Load Distribution**: Multiple clients can connect to the same agent server
+3. **Language Agnostic Clients**: Any HTTP client can interact with the agent server
+4. **Testing**: Test your agent's HTTP API programmatically
+5. **Agent Orchestration**: Build systems where multiple agents communicate
+
+**Key Benefits:**
+- Same interface as local `Agent` (implements `AIAgent`)
+- Automatic endpoint URL construction
+- Built-in error handling for HTTP communication
+- Supports all agent operations (Ask, AskStream, AddSystemMessage, GetMessages, GetInfo)
+
+**Example: Multiple Clients to One Server**
+
+```go
+// Start one server
+agent := smart.NewAgent(ctx, agentConfig, modelConfig,
+    smart.EnableChatFlowWithMemory(),
+    smart.EnableServer(smart.ConfigHTTP{Address: "0.0.0.0:9100"}),
+)
+go agent.Serve()
+
+// Connect multiple clients
+client1 := smart.NewRemoteAgent("Client 1", smart.ConfigHTTP{Address: "0.0.0.0:9100"})
+client2 := smart.NewRemoteAgent("Client 2", smart.ConfigHTTP{Address: "0.0.0.0:9100"})
+
+// Both clients share the same conversation history on the server
+client1.Ask("My name is Alice")
+client2.Ask("What is my name?")  // Will know it's Alice
 ```
 
 ## Configuration Tips

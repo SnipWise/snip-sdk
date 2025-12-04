@@ -15,11 +15,13 @@ func main() {
 	chatModelId := env.GetEnvOrDefault("CHAT_MODEL", "hf.co/menlo/jan-nano-gguf:q4_k_m")
 
 	agent0 := smart.NewAgent(ctx,
-		"Local Agent",
-		"You are a helpful assistant.",
-		chatModelId,
-		engineURL,
-		smart.Config{
+		smart.AgentConfig{
+			Name:               "Local Agent",
+			SystemInstructions: "You are a helpful assistant.",
+			ModelID:            chatModelId,
+			EngineURL:          engineURL,
+		},
+		smart.ModelConfig{
 			Temperature: 0.5,
 			TopP:        0.9,
 		},

@@ -34,7 +34,7 @@ type Agent struct {
 	ModelID            string
 	Messages           []*ai.Message
 
-	Config Config
+	Config ModelConfig
 
 	genKitInstance *genkit.Genkit
 
@@ -76,22 +76,22 @@ func (agent *Agent) GetInfo() (AgentInfo, error) {
 	}, nil
 }
 
-func NewAgent(ctx context.Context, name, systemInstructions, modelID, engineURL string, config Config, opts ...AgentOption) *Agent {
+func NewAgent(ctx context.Context, agentConfig AgentConfig, modelConfig ModelConfig, opts ...AgentOption) *Agent {
 	oaiPlugin := &oai.OpenAI{
 		APIKey: "I💙DockerModelRunner",
 		Opts: []option.RequestOption{
-			option.WithBaseURL(engineURL),
+			option.WithBaseURL(agentConfig.EngineURL),
 		},
 	}
 
 	genKitInstance := genkit.Init(ctx, genkit.WithPlugins(oaiPlugin))
 
 	agent := &Agent{
-		Name:               name,
-		SystemInstructions: systemInstructions,
-		ModelID:            modelID,
+		Name:               agentConfig.Name,
+		SystemInstructions: agentConfig.SystemInstructions,
+		ModelID:            agentConfig.ModelID,
 		Messages:           []*ai.Message{},
-		Config:             config,
+		Config:             modelConfig,
 
 		ctx:            ctx,
 		genKitInstance: genKitInstance,

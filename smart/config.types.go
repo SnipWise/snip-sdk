@@ -2,8 +2,8 @@ package smart
 
 import "github.com/openai/openai-go"
 
-// Config represents the configuration for chat completion
-type Config struct {
+// ModelConfig represents the configuration for chat completion
+type ModelConfig struct {
 	// Temperature controls randomness in responses (0.0-2.0).
 	// Higher values (e.g., 1.0) make output more random, lower values (e.g., 0.2) make it more focused and deterministic.
 	Temperature float64
@@ -46,8 +46,8 @@ type Config struct {
 	//User string
 }
 
-// ToOpenAIParams converts Config to OpenAI ChatCompletionNewParams
-func (c Config) ToOpenAIParams() *openai.ChatCompletionNewParams {
+// ToOpenAIParams converts ModelConfig to OpenAI ChatCompletionNewParams
+func (c ModelConfig) ToOpenAIParams() *openai.ChatCompletionNewParams {
 	params := &openai.ChatCompletionNewParams{}
 	if c.Temperature != 0 {
 		params.Temperature = openai.Float(c.Temperature)
