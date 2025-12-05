@@ -9,5 +9,6 @@ const (
 	Tool  AgentKind = "Tool"
 	Intent AgentKind = "Intent"
 	Rag    AgentKind = "Rag"
+	Compressor AgentKind = "Compressor"
 )
 

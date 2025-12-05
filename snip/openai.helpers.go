@@ -22,6 +22,7 @@ func GetModelsList(ctx context.Context, modelRunnerEndpoint string) ([]string, e
 	}
 	models := []string{}
 	for _, model := range modelsResponse.Data {
+
 		models = append(models, model.ID)
 	}
 	return models, nil

@@ -35,14 +35,14 @@ func main() {
 
 	//agent0.ModelID = "ai/qwen2.5:latest"
 
-	response, err := agent0.Ask("What is the capital of France?")
+	response, err := agent0.AskWithMemory("What is the capital of France?")
 	if err != nil {
 		fmt.Printf("Error asking question: %v\n", err)
 		return
 	}
 	fmt.Printf("Response from Local Agent: %s\n", response)
 
-	_, err = agent0.AskStream("What is the capital of Belgium?",
+	_, err = agent0.AskStreamWithMemory("What is the capital of Belgium?",
 		func(chunk snip.ChatResponse) error {
 			fmt.Print(chunk.Text)
 			return nil

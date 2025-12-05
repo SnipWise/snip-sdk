@@ -89,7 +89,7 @@ func main() {
 	log.Println("Question: Who is Philippe Charrière?")
 	log.Println("---")
 
-	fullResponse, err := remoteAgent.AskStream(
+	fullResponse, err := remoteAgent.AskStreamWithMemory(
 		"Who is Philippe Charrière?",
 		func(chunk snip.ChatResponse) error {
 			fmt.Print(chunk.Text)

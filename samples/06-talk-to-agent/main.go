@@ -90,7 +90,7 @@ func main() {
 	log.Println("Question: What is Go programming language?")
 	log.Println("---")
 
-	response, err := remoteAgent.Ask("What is Go programming language?")
+	response, err := remoteAgent.AskWithMemory("What is Go programming language?")
 	if err != nil {
 		log.Fatalf("❌ Error asking question: %v", err)
 	}
@@ -105,7 +105,7 @@ func main() {
 	log.Println("Question: Explain what are goroutines in 2 sentences")
 	log.Println("---")
 
-	fullResponse, err := remoteAgent.AskStream(
+	fullResponse, err := remoteAgent.AskStreamWithMemory(
 		"Explain what are goroutines in 2 sentences",
 		func(chunk snip.ChatResponse) error {
 			// Print the chunk text if present
@@ -134,7 +134,7 @@ func main() {
 	log.Println("Question: What are the benefits of using it?")
 	log.Println("---")
 
-	response3, err := remoteAgent.Ask("What are the benefits of using it?")
+	response3, err := remoteAgent.AskWithMemory("What are the benefits of using it?")
 	if err != nil {
 		log.Fatalf("❌ Error asking follow-up question: %v", err)
 	}

@@ -11,12 +11,12 @@ import (
 // EnableChatFlowWithMemory initializes the chat flow for the agent
 func EnableChatFlowWithMemory() AgentOption {
 	return func(agent *Agent) {
-		initializeChatFlow(agent)
+		initializeChatFlowWithMemory(agent)
 	}
 }
 
-func initializeChatFlow(agent *Agent) {
-	chatFlow := genkit.DefineFlow(agent.genKitInstance, agent.Name+"-chat-flow",
+func initializeChatFlowWithMemory(agent *Agent) {
+	chatFlowWithMemory := genkit.DefineFlow(agent.genKitInstance, agent.Name+"-chat-flow-with-memory",
 		func(ctx context.Context, input *ChatRequest) (*ChatResponse, error) {
 
 			// === COMPLETION ===
@@ -43,12 +43,12 @@ func initializeChatFlow(agent *Agent) {
 			displayConversationHistory(agent)
 
 			return &ChatResponse{
-				Text: resp.Text(),
-				FinishReason: string(resp.FinishReason),
+				Text:          resp.Text(),
+				FinishReason:  string(resp.FinishReason),
 				FinishMessage: resp.FinishMessage,
 			}, nil
 		})
-		
-	agent.chatFlow = chatFlow
+
+	agent.chatFlowWithMemory = chatFlowWithMemory
 
 }

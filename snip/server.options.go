@@ -8,12 +8,12 @@ import (
 func EnableServer(config ConfigHTTP) AgentOption {
 	return func(agent *Agent) {
 		// Set up HTTP handlers for the flows
-		if agent.chatFlow != nil && config.ChatFlowHandler == nil {
-			config.ChatFlowHandler = genkit.Handler(agent.chatFlow)
+		if agent.chatFlowWithMemory != nil && config.ChatFlowHandler == nil {
+			config.ChatFlowHandler = genkit.Handler(agent.chatFlowWithMemory)
 		}
 
-		if agent.chatStreamFlow != nil && config.ChatStreamFlowHandler == nil {
-			config.ChatStreamFlowHandler = genkit.Handler(agent.chatStreamFlow)
+		if agent.chatStreamFlowWithMemory != nil && config.ChatStreamFlowHandler == nil {
+			config.ChatStreamFlowHandler = genkit.Handler(agent.chatStreamFlowWithMemory)
 		}
 
 		agent.serverConfig = &config

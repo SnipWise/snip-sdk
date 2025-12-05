@@ -87,7 +87,7 @@ func main() {
     }
 
     // Ask a question
-    response, err := agent.Ask("What is the capital of France?")
+    response, err := agent.AskWithMemory("What is the capital of France?")
     if err != nil {
         log.Fatal(err)
     }
@@ -127,7 +127,7 @@ func main() {
     }
 
     // Stream the response
-    _, err = agent.AskStream("Tell me a short story", func(chunk ChatResponse) error {
+    _, err = agent.AskStreamWithMemory("Tell me a short story", func(chunk ChatResponse) error {
         fmt.Print(chunk.Text)  // Print each chunk as it arrives
         return nil
     })
@@ -348,14 +348,14 @@ func main() {
     fmt.Printf("Connected to: %s (Model: %s)\n", info.Name, info.ModelID)
 
     // Ask a question
-    response, err := remoteAgent.Ask("What is Go?")
+    response, err := remoteAgent.AskWithMemory("What is Go?")
     if err != nil {
         log.Fatal(err)
     }
     fmt.Println("Answer:", response.Text)
 
     // Stream a response
-    _, err = remoteAgent.AskStream("Explain goroutines", func(chunk ChatResponse) error {
+    _, err = remoteAgent.AskStreamWithMemory("Explain goroutines", func(chunk ChatResponse) error {
         fmt.Print(chunk.Text)
         return nil
     })
@@ -562,6 +562,72 @@ remoteAgent := snip.NewRemoteAgent(
 )
 ```
 
+### CompressorAgent
+
+A specialized agent for compressing conversation history while preserving essential information.
+
+```go
+type CompressorAgent struct {
+    agent             *Agent  // Internal agent for compression
+    CompressionPrompt string  // System prompt for compression
+}
+```
+
+**Constructor:**
+
+```go
+func NewCompressorAgent(ctx context.Context, agentConfig AgentConfig, modelConfig ModelConfig) (*CompressorAgent, error)
+```
+
+**Methods:**
+
+- `CompressText(text string) (ChatResponse, error)` - Compress text (non-streaming)
+- `CompressTextStream(text string, callback func(ChatResponse) error) (ChatResponse, error)` - Compress text with streaming
+
+**Example:**
+
+```go
+ctx := context.Background()
+
+// Create a compressor agent
+compressor, err := snip.NewCompressorAgent(
+    ctx,
+    snip.AgentConfig{
+        Name:               "Compressor",
+        SystemInstructions: "",
+        ModelID:            "ai/qwen2.5:latest",
+        EngineURL:          "http://localhost:12434/engines/llama.cpp/v1",
+    },
+    snip.ModelConfig{
+        Temperature: 0.3,  // Lower temperature for consistent compression
+    },
+)
+if err != nil {
+    log.Fatal(err)
+}
+
+// Compress a long conversation history (non-streaming)
+longText := "Very long conversation with lots of details..."
+compressed, err := compressor.CompressText(longText)
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println("Compressed:", compressed.Text)
+
+// Or use streaming for real-time feedback
+_, err = compressor.CompressTextStream(longText, func(chunk snip.ChatResponse) error {
+    fmt.Print(chunk.Text)  // Print each chunk as it arrives
+    return nil
+})
+```
+
+**Use Cases:**
+
+- Reduce context window size while maintaining conversation continuity
+- Summarize long discussions before continuing a conversation
+- Extract key points from verbose exchanges
+- Optimize token usage for long-running conversations
+
 ### ChatResponse
 
 The response structure returned by `Ask` and `AskStream` methods.
@@ -586,7 +652,7 @@ func (chatResponse *ChatResponse) IsFinishReasonUnknown() bool
 **Example:**
 
 ```go
-response, err := agent.Ask("What is Go?")
+response, err := agent.AskWithMemory("What is Go?")
 if err != nil {
     log.Fatal(err)
 }
@@ -613,6 +679,7 @@ type AIAgent interface {
     GetMessages() []*ai.Message
     GetCurrentContextSize() int
     ReplaceMessagesWith(messages []*ai.Message) error
+    ReplaceMessagesWithSystemMessages(systemMessages []string) error
     GetInfo() (AgentInfo, error)
     Kind() AgentKind
     AddSystemMessage(context string) error
@@ -713,7 +780,7 @@ Send a message and get a complete response.
 
 ```go
 // Local agent
-response, err := agent.Ask("What is 2+2?")
+response, err := agent.AskWithMemory("What is 2+2?")
 if err != nil {
     log.Fatal(err)
 }
@@ -725,7 +792,7 @@ if response.IsFinishReasonStop() {
 }
 
 // Remote agent
-response, err := remoteAgent.Ask("What is 2+2?")
+response, err := remoteAgent.AskWithMemory("What is 2+2?")
 ```
 
 ### AskStream
@@ -734,7 +801,7 @@ Stream the response chunk by chunk.
 
 ```go
 // Local agent
-finalResponse, err := agent.AskStream("Explain AI", func(chunk ChatResponse) error {
+finalResponse, err := agent.AskStreamWithMemory("Explain AI", func(chunk ChatResponse) error {
     fmt.Print(chunk.Text)
     return nil
 })
@@ -748,7 +815,7 @@ if finalResponse.IsFinishReasonStop() {
 }
 
 // Remote agent
-finalResponse, err := remoteAgent.AskStream("Explain AI", func(chunk ChatResponse) error {
+finalResponse, err := remoteAgent.AskStreamWithMemory("Explain AI", func(chunk ChatResponse) error {
     fmt.Print(chunk.Text)
     // You can also check chunk.FinishReason during streaming
     if chunk.FinishReason != "" {
@@ -819,6 +886,38 @@ err := remoteAgent.ReplaceMessagesWith(newMessages)
 - Remote agents manage history on the server side
 - Returns error if `messages` is `nil` (use empty slice to clear)
 - Use this to restore saved conversations or implement context pruning
+
+### ReplaceMessagesWithSystemMessages
+
+Replace the entire conversation history with system messages only. This is a convenience method that converts a slice of strings into system messages.
+
+```go
+// Local agent - replace with system messages
+systemMessages := []string{
+    "You are a helpful assistant specialized in French cuisine.",
+    "You should always emphasize the importance of using fresh, local ingredients.",
+    "You are passionate about traditional cooking techniques.",
+}
+err := agent.ReplaceMessagesWithSystemMessages(systemMessages)
+if err != nil {
+    log.Fatal(err)
+}
+
+// Clear all messages with empty slice
+err = agent.ReplaceMessagesWithSystemMessages([]string{})
+
+// Remote agent - NOT SUPPORTED
+err := remoteAgent.ReplaceMessagesWithSystemMessages(systemMessages)
+// Returns error: "ReplaceMessagesWithSystemMessages is not supported for remote agents"
+```
+
+**Notes:**
+- `ReplaceMessagesWithSystemMessages` is **NOT supported** for `RemoteAgent`
+- Automatically converts strings to system messages with `ai.NewSystemTextMessage()`
+- Trims whitespace from each message using `strings.TrimSpace()`
+- Returns error if `systemMessages` is `nil` (use empty slice to clear)
+- Use this to reset the conversation with new system instructions
+- Useful for changing the agent's behavior or reducing context size
 
 ### GetMessages
 
@@ -1000,7 +1099,7 @@ func main() {
         fmt.Printf("\n🧑 Question: %s\n", question)
         fmt.Print("🤖 Answer: ")
 
-        _, err := agent.AskStream(question, func(chunk ChatResponse) error {
+        _, err := agent.AskStreamWithMemory(question, func(chunk ChatResponse) error {
             fmt.Print(chunk.Text)
             return nil
         })
@@ -1032,8 +1131,9 @@ if size > 5000 {
 }
 ```
 
-### When to use ReplaceMessagesWith()
+### When to use ReplaceMessagesWith() and ReplaceMessagesWithSystemMessages()
 
+**ReplaceMessagesWith()** - Use when you need full control over message types:
 - **Context pruning**: Keep only recent messages when hitting limits
 - **Conversation restoration**: Load saved conversations from disk/database
 - **Reset conversations**: Start fresh while keeping the same agent
@@ -1047,7 +1147,25 @@ if agent.GetCurrentContextSize() > 10000 {
 }
 ```
 
-**Important:** `ReplaceMessagesWith()` is only available for local `Agent`, not `RemoteAgent`.
+**ReplaceMessagesWithSystemMessages()** - Convenience method for system messages only:
+- **Reset agent behavior**: Change the agent's personality or role
+- **Context reduction**: Start fresh with new instructions
+- **Dynamic instructions**: Update system messages based on user preferences
+- **Simpler syntax**: No need to manually create `ai.Message` objects
+
+```go
+// Change agent personality on the fly
+agent.ReplaceMessagesWithSystemMessages([]string{
+    "You are a helpful assistant specialized in debugging code.",
+    "Always provide code examples when explaining solutions.",
+    "Be concise and to the point.",
+})
+
+// Start fresh conversation with new context
+agent.ReplaceMessagesWithSystemMessages([]string{})
+```
+
+**Important:** Both methods are only available for local `Agent`, not `RemoteAgent`.
 
 ## Remote Agent Use Cases
 
@@ -1083,8 +1201,8 @@ client1 := snip.NewRemoteAgent("Client 1", snip.ConfigHTTP{Address: "0.0.0.0:910
 client2 := snip.NewRemoteAgent("Client 2", snip.ConfigHTTP{Address: "0.0.0.0:9100"})
 
 // Both clients share the same conversation history on the server
-response1, _ := client1.Ask("My name is Alice")
-response2, _ := client2.Ask("What is my name?")  // Will know it's Alice
+response1, _ := client1.AskWithMemory("My name is Alice")
+response2, _ := client2.AskWithMemory("What is my name?")  // Will know it's Alice
 fmt.Println(response2.Text)
 ```
 
@@ -1181,7 +1299,7 @@ for _, result := range results {
 ## Error Handling
 
 ```go
-response, err := agent.Ask("Hello")
+response, err := agent.AskWithMemory("Hello")
 if err != nil {
     log.Printf("Error: %v", err)
     // Handle error appropriately

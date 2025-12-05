@@ -420,6 +420,189 @@ func TestAgentReplaceMessages(t *testing.T) {
 }
 
 // ============================================================================
+// Tests for Agent.ReplaceMessagesWithSystemMessages
+// ============================================================================
+
+func TestAgentReplaceMessagesWithSystemMessages(t *testing.T) {
+	t.Run("replace empty messages with system messages", func(t *testing.T) {
+		agent := &Agent{
+			Messages: []*ai.Message{},
+		}
+
+		systemMessages := []string{
+			"You are a helpful assistant",
+			"Always be polite and concise",
+		}
+
+		err := agent.ReplaceMessagesWithSystemMessages(systemMessages)
+		if err != nil {
+			t.Errorf("ReplaceMessagesWithSystemMessages() unexpected error: %v", err)
+		}
+
+		if len(agent.Messages) != 2 {
+			t.Fatalf("Expected 2 messages, got %d", len(agent.Messages))
+		}
+
+		// Verify all messages are system messages
+		for i, msg := range agent.Messages {
+			if msg.Role != ai.RoleSystem {
+				t.Errorf("Message %d role = %v, want %v", i, msg.Role, ai.RoleSystem)
+			}
+			if msg.Content[0].Text != systemMessages[i] {
+				t.Errorf("Message %d content = %q, want %q", i, msg.Content[0].Text, systemMessages[i])
+			}
+		}
+	})
+
+	t.Run("replace existing mixed messages with system messages", func(t *testing.T) {
+		oldMessages := []*ai.Message{
+			ai.NewUserTextMessage("User message"),
+			ai.NewModelTextMessage("Model message"),
+			ai.NewSystemTextMessage("Old system message"),
+		}
+
+		agent := &Agent{
+			Messages: oldMessages,
+		}
+
+		systemMessages := []string{
+			"System instruction 1",
+			"System instruction 2",
+		}
+
+		err := agent.ReplaceMessagesWithSystemMessages(systemMessages)
+		if err != nil {
+			t.Errorf("ReplaceMessagesWithSystemMessages() unexpected error: %v", err)
+		}
+
+		if len(agent.Messages) != 2 {
+			t.Fatalf("Expected 2 messages, got %d", len(agent.Messages))
+		}
+
+		// Verify all messages are system messages with correct content
+		for i, msg := range agent.Messages {
+			if msg.Role != ai.RoleSystem {
+				t.Errorf("Message %d role = %v, want %v", i, msg.Role, ai.RoleSystem)
+			}
+			if msg.Content[0].Text != systemMessages[i] {
+				t.Errorf("Message %d content = %q, want %q", i, msg.Content[0].Text, systemMessages[i])
+			}
+		}
+
+		// Verify old messages are completely replaced
+		for _, oldMsg := range oldMessages {
+			found := false
+			for _, currentMsg := range agent.Messages {
+				if currentMsg == oldMsg {
+					found = true
+					break
+				}
+			}
+			if found {
+				t.Error("Old message still present after replacement")
+			}
+		}
+	})
+
+	t.Run("trim whitespace from system messages", func(t *testing.T) {
+		agent := &Agent{
+			Messages: []*ai.Message{},
+		}
+
+		systemMessages := []string{
+			"  Message with leading spaces",
+			"Message with trailing spaces  ",
+			"  Message with both  ",
+		}
+
+		err := agent.ReplaceMessagesWithSystemMessages(systemMessages)
+		if err != nil {
+			t.Errorf("ReplaceMessagesWithSystemMessages() unexpected error: %v", err)
+		}
+
+		expectedMessages := []string{
+			"Message with leading spaces",
+			"Message with trailing spaces",
+			"Message with both",
+		}
+
+		for i, msg := range agent.Messages {
+			if msg.Content[0].Text != expectedMessages[i] {
+				t.Errorf("Message %d content = %q, want %q", i, msg.Content[0].Text, expectedMessages[i])
+			}
+		}
+	})
+
+	t.Run("replace with empty slice", func(t *testing.T) {
+		agent := &Agent{
+			Messages: []*ai.Message{
+				ai.NewUserTextMessage("Message 1"),
+				ai.NewUserTextMessage("Message 2"),
+			},
+		}
+
+		systemMessages := []string{}
+
+		err := agent.ReplaceMessagesWithSystemMessages(systemMessages)
+		if err != nil {
+			t.Errorf("ReplaceMessagesWithSystemMessages() unexpected error: %v", err)
+		}
+
+		if len(agent.Messages) != 0 {
+			t.Fatalf("Expected 0 messages, got %d", len(agent.Messages))
+		}
+	})
+
+	t.Run("nil system messages returns error", func(t *testing.T) {
+		agent := &Agent{
+			Messages: []*ai.Message{
+				ai.NewUserTextMessage("Existing message"),
+			},
+		}
+
+		err := agent.ReplaceMessagesWithSystemMessages(nil)
+		if err == nil {
+			t.Error("ReplaceMessagesWithSystemMessages(nil) expected error, got nil")
+		}
+
+		expectedMsg := "systemMessages cannot be nil"
+		if err.Error() != expectedMsg {
+			t.Errorf("ReplaceMessagesWithSystemMessages(nil) error = %q, want %q", err.Error(), expectedMsg)
+		}
+
+		// Verify existing messages are not modified when error occurs
+		if len(agent.Messages) != 1 {
+			t.Errorf("Messages were modified despite error, length = %d, want 1", len(agent.Messages))
+		}
+	})
+
+	t.Run("single system message", func(t *testing.T) {
+		agent := &Agent{
+			Messages: []*ai.Message{},
+		}
+
+		systemMessages := []string{"You are a helpful assistant"}
+
+		err := agent.ReplaceMessagesWithSystemMessages(systemMessages)
+		if err != nil {
+			t.Errorf("ReplaceMessagesWithSystemMessages() unexpected error: %v", err)
+		}
+
+		if len(agent.Messages) != 1 {
+			t.Fatalf("Expected 1 message, got %d", len(agent.Messages))
+		}
+
+		if agent.Messages[0].Role != ai.RoleSystem {
+			t.Errorf("Message role = %v, want %v", agent.Messages[0].Role, ai.RoleSystem)
+		}
+
+		if agent.Messages[0].Content[0].Text != "You are a helpful assistant" {
+			t.Errorf("Message content = %q, want %q", agent.Messages[0].Content[0].Text, "You are a helpful assistant")
+		}
+	})
+}
+
+// ============================================================================
 // Tests for Agent.GetInfo
 // ============================================================================
 
@@ -496,6 +679,58 @@ func TestAgentAsk(t *testing.T) {
 	t.Run("chatFlow not initialized", func(t *testing.T) {
 		ctx := context.Background()
 		agent := &Agent{
+			ctx:                ctx,
+			chatFlowWithMemory: nil,
+		}
+
+		_, err := agent.AskWithMemory("Hello")
+		if err == nil {
+			t.Error("AskWithMemory() expected error when chatFlow is nil, got nil")
+		}
+
+		expectedMsg := "chat flow is not initialized"
+		if err.Error() != expectedMsg {
+			t.Errorf("AskWithMemory() error message = %q, want %q", err.Error(), expectedMsg)
+		}
+	})
+}
+
+// ============================================================================
+// Tests for Agent.AskStream (without actual API calls)
+// ============================================================================
+
+func TestAgentAskStream(t *testing.T) {
+	t.Run("chatStreamFlow not initialized", func(t *testing.T) {
+		ctx := context.Background()
+		agent := &Agent{
+			ctx:                      ctx,
+			chatStreamFlowWithMemory: nil,
+		}
+
+		callback := func(chunk ChatResponse) error {
+			return nil
+		}
+
+		_, err := agent.AskStreamWithMemory("Hello", callback)
+		if err == nil {
+			t.Error("AskStreamWithMemory() expected error when chatStreamFlow is nil, got nil")
+		}
+
+		expectedMsg := "chat stream flow is not initialized"
+		if err.Error() != expectedMsg {
+			t.Errorf("AskStreamWithMemory() error message = %q, want %q", err.Error(), expectedMsg)
+		}
+	})
+}
+
+// ============================================================================
+// Tests for Agent.Ask (without memory)
+// ============================================================================
+
+func TestAgentAskWithoutMemory(t *testing.T) {
+	t.Run("chatFlow not initialized", func(t *testing.T) {
+		ctx := context.Background()
+		agent := &Agent{
 			ctx:      ctx,
 			chatFlow: nil,
 		}
@@ -513,10 +748,10 @@ func TestAgentAsk(t *testing.T) {
 }
 
 // ============================================================================
-// Tests for Agent.AskStream (without actual API calls)
+// Tests for Agent.AskStream (without memory)
 // ============================================================================
 
-func TestAgentAskStream(t *testing.T) {
+func TestAgentAskStreamWithoutMemory(t *testing.T) {
 	t.Run("chatStreamFlow not initialized", func(t *testing.T) {
 		ctx := context.Background()
 		agent := &Agent{

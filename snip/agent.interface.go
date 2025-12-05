@@ -5,11 +5,20 @@ import (
 )
 
 type AIAgent interface {
+	// Methods with memory management (conversation history is maintained)
+	AskWithMemory(question string) (ChatResponse, error)
+	AskStreamWithMemory(question string, callback func(ChatResponse) error) (ChatResponse, error)
+
+	// Methods without memory management (stateless, each request is independent)
 	Ask(question string) (ChatResponse, error)
 	AskStream(question string, callback func(ChatResponse) error) (ChatResponse, error)
+
 	GetName() string
 	GetMessages() []*ai.Message
+
 	ReplaceMessagesWith(messages []*ai.Message) error
+	
+	ReplaceMessagesWithSystemMessages(systemMessages []string) error
 
 	GetCurrentContextSize() int
 
@@ -17,6 +26,7 @@ type AIAgent interface {
 	Kind() AgentKind
 	AddSystemMessage(context string) error
 }
+
 // TODO: add helpers to handle the messages
 
 // TODO:

@@ -14,6 +14,9 @@ func main() {
 	engineURL := env.GetEnvOrDefault("MODEL_RUNNER_BASE_URL", "http://localhost:12434/engines/llama.cpp/v1")
 	chatModelId := env.GetEnvOrDefault("CHAT_MODEL", "hf.co/menlo/jan-nano-gguf:q4_k_m")
 
+	//_,_= snip.GetModelsList(ctx , engineURL)
+
+
 	agent0, err := snip.NewAgent(ctx,
 		snip.AgentConfig{
 			Name:               "Local Agent",
@@ -32,7 +35,7 @@ func main() {
 		return
 	}
 
-	finalResponse, err := agent0.AskStream("What is the capital of France?",
+	finalResponse, err := agent0.AskStreamWithMemory("What is the capital of France?",
 		func(chunk snip.ChatResponse) error {
 			// During streaming, Text contains the chunk content
 			// At the end, a final chunk is sent with FinishReason and FinishMessage
@@ -57,7 +60,7 @@ func main() {
 
 	fmt.Println("\n---")
 
-	finalResponse, err = agent0.AskStream("What is the capital of Belgium?",
+	finalResponse, err = agent0.AskStreamWithMemory("What is the capital of Belgium?",
 		func(chunk snip.ChatResponse) error {
 			// During streaming, Text contains the chunk content
 			// At the end, a final chunk is sent with FinishReason and FinishMessage

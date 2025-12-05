@@ -7,7 +7,7 @@ A Go SDK for building AI agents with streaming support and HTTP server capabilit
 ## Features
 
 - **Simple and Remote Agents**: Create local agents or connect to remote agent services
-- **Streaming Support**: Real-time streaming responses with `AskStream`
+- **Streaming Support**: Real-time streaming responses with `AskStreamWithMemory`
 - **HTTP Server**: Built-in HTTP server with multiple endpoints for chat, streaming, and agent management
 - **Message History**: Automatic conversation history management
 - **System Context**: Dynamic context injection with `AddSystemMessage`
@@ -42,11 +42,11 @@ agent, err := snip.NewAgent(ctx, agentConfig, modelConfig,
 )
 
 // Ask a question
-response, err := agent.Ask("Hello!")
+response, err := agent.AskWithMemory("Hello!")
 fmt.Println(response.Text)
 
 // Stream a response
-response, err = agent.AskStream("Tell me a story", func(chunk snip.ChatResponse) error {
+response, err = agent.AskStreamWithMemory("Tell me a story", func(chunk snip.ChatResponse) error {
     fmt.Print(chunk.Text)
     return nil
 })
@@ -55,6 +55,36 @@ response, err = agent.AskStream("Tell me a story", func(chunk snip.ChatResponse)
 if response.IsFinishReasonStop() {
     fmt.Println("Completed normally")
 }
+```
+
+### Memory Management
+
+The SDK provides two sets of methods for interacting with agents:
+
+**With Memory (Stateful)** - Maintains conversation history:
+```go
+// Each call remembers previous questions and answers
+response1, _ := agent.AskWithMemory("What is Go?")
+response2, _ := agent.AskWithMemory("What are its benefits?") // Knows "its" refers to Go
+
+// Streaming with memory
+agent.AskStreamWithMemory("Explain more", func(chunk snip.ChatResponse) error {
+    fmt.Print(chunk.Text)
+    return nil
+})
+```
+
+**Without Memory (Stateless)** - Each request is independent:
+```go
+// Each call is independent, no conversation history
+response1, _ := agent.Ask("What is Go?")
+response2, _ := agent.Ask("What are its benefits?") // Doesn't know what "its" refers to
+
+// Streaming without memory
+agent.AskStream("Tell me a story", func(chunk snip.ChatResponse) error {
+    fmt.Print(chunk.Text)
+    return nil
+})
 ```
 
 ### Remote Agent
@@ -70,7 +100,7 @@ config := snip.ConfigHTTP{
 
 remoteAgent := snip.NewRemoteAgent("remote-assistant", config)
 
-response, err := remoteAgent.Ask("What's the weather?")
+response, err := remoteAgent.AskWithMemory("What's the weather?")
 ```
 
 ### HTTP Server
@@ -105,7 +135,7 @@ Default endpoints:
 ```go
 // Add system context during conversation
 agent.AddSystemMessage("You are now an expert in astronomy")
-response, _ := agent.Ask("Tell me about stars")
+response, _ := agent.AskWithMemory("Tell me about stars")
 ```
 
 ### Managing Message History
@@ -148,12 +178,13 @@ Helper methods:
 
 ```go
 type AIAgent interface {
-    Ask(question string) (ChatResponse, error)
-    AskStream(question string, callback func(ChatResponse) error) (ChatResponse, error)
+    AskWithMemory(question string) (ChatResponse, error)
+    AskStreamWithMemory(question string, callback func(ChatResponse) error) (ChatResponse, error)
     GetName() string
     GetMessages() []*ai.Message
     GetCurrentContextSize() int
     ReplaceMessagesWith(messages []*ai.Message) error
+    ReplaceMessagesWithSystemMessages(systemMessages []string) error
     GetInfo() (AgentInfo, error)
     Kind() AgentKind
     AddSystemMessage(context string) error
@@ -173,7 +204,7 @@ if agent.GetCurrentContextSize() > 5000 {
     log.Println("Warning: Large context, consider pruning")
 }
 
-response, _ := agent.Ask("What's the weather?")
+response, _ := agent.AskWithMemory("What's the weather?")
 ```
 
 **Implement context window limits:**
@@ -207,16 +238,23 @@ agent.ReplaceMessagesWith(messages)
 // Clear all history
 agent.ReplaceMessagesWith([]*ai.Message{})
 
-// Or start with new system instructions
+// Or start with new system instructions (using ReplaceMessagesWith)
 agent.ReplaceMessagesWith([]*ai.Message{
     ai.NewSystemTextMessage("You are a code review expert"),
+})
+
+// Easier way: use ReplaceMessagesWithSystemMessages
+agent.ReplaceMessagesWithSystemMessages([]string{
+    "You are a helpful assistant specialized in French cuisine.",
+    "You should always emphasize the importance of using fresh, local ingredients.",
+    "You are passionate about traditional cooking techniques.",
 })
 ```
 
 ### Remote Agent Limitations
 
 When using `RemoteAgent`, be aware that:
-- `ReplaceMessagesWith()` is not supported (message history is managed server-side)
+- `ReplaceMessagesWith()` and `ReplaceMessagesWithSystemMessages()` are not supported (message history is managed server-side)
 - `GetCurrentContextSize()` makes an HTTP call and may return 0 on errors
 - `GetMessages()` fetches from the server, so cache results if needed
 

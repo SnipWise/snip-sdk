@@ -48,7 +48,7 @@ func main() {
 		return
 	}
 
-	answer, err := agent0.AskStream("What is the best pizza of the world?",
+	answer, err := agent0.AskStreamWithMemory("What is the best pizza of the world?",
 		func(chunk snip.ChatResponse) error {
 			fmt.Print(chunk.Text)
 			return nil
@@ -66,6 +66,10 @@ func main() {
 	if answer.IsFinishReasonStop() {
 		fmt.Println("✅ The answer was completed successfully.")
 	}
+	fmt.Println(strings.Repeat("*", 50))
+	fmt.Println("📏 Current Context Size:", agent0.GetCurrentContextSize())
+	fmt.Println(strings.Repeat("*", 50))
+
 
 	fmt.Println("\n--- Adding knowledge base context ---")
 
@@ -81,7 +85,7 @@ func main() {
 
 	fmt.Printf("Messages after adding context: %d\n", len(agent0.GetMessages()))
 
-	answer, err = agent0.AskStream("Who invented Hawaiian pizza?",
+	answer, err = agent0.AskStreamWithMemory("Who invented Hawaiian pizza?",
 		func(chunk snip.ChatResponse) error {
 			fmt.Print(chunk.Text)
 			return nil
@@ -103,7 +107,7 @@ func main() {
 	fmt.Println()
 	fmt.Println("\n--- Add again knowledge base context ---")
 
-	answer, err = agent0.AskStream("What is Hawaiian pizza?",
+	answer, err = agent0.AskStreamWithMemory("What is Hawaiian pizza?",
 		func(chunk snip.ChatResponse) error {
 			fmt.Print(chunk.Text)
 			return nil
@@ -124,7 +128,7 @@ func main() {
 	}
 
 	fmt.Println(strings.Repeat("=", 50))
-	fmt.Println("Context Size:", agent0.GetCurrentContextSize())
+	fmt.Println("Current Context Size:", agent0.GetCurrentContextSize())
 	for i, msg := range agent0.GetMessages() {
 		// Get first 50 characters of the message content
 		messageText := ""
@@ -172,7 +176,49 @@ func main() {
 
 	// Test a new question with the replaced context
 	fmt.Println("\n--- Asking a question with new context ---")
-	answer, err = agent0.AskStream("Tell me about pizza.",
+	answer, err = agent0.AskStreamWithMemory("Tell me about pizza.",
+		func(chunk snip.ChatResponse) error {
+			fmt.Print(chunk.Text)
+			return nil
+		},
+	)
+	if err != nil {
+		fmt.Printf("\n❌ Error asking question: %v\n", err)
+		return
+	}
+	fmt.Println("\n✋ FinishReason:", answer.FinishReason)
+
+	// Demonstrate ReplaceMessagesWithSystemMessages
+	fmt.Println("\n--- Using ReplaceMessagesWithSystemMessages ---")
+
+	systemMessages := []string{
+		"You are a helpful assistant specialized in French cuisine.",
+		"You should always emphasize the importance of using fresh, local ingredients.",
+		"You are passionate about traditional cooking techniques.",
+	}
+
+	err = agent0.ReplaceMessagesWithSystemMessages(systemMessages)
+	if err != nil {
+		fmt.Printf("Error replacing messages with system messages: %v\n", err)
+		return
+	}
+
+	fmt.Println("\n--- After ReplaceMessagesWithSystemMessages ---")
+	fmt.Println(strings.Repeat("~", 50))
+	fmt.Println("Context Size:", agent0.GetCurrentContextSize())
+	fmt.Printf("Number of messages: %d\n", len(agent0.GetMessages()))
+	for i, msg := range agent0.GetMessages() {
+		messageText := ""
+		if len(msg.Content) > 0 && len(msg.Content[0].Text) > 0 {
+			messageText = msg.Content[0].Text
+		}
+		fmt.Printf("Message %d: Role=%s, Content=%q\n", i, msg.Role, messageText)
+	}
+	fmt.Println(strings.Repeat("~", 50))
+
+	// Test with the new system messages
+	fmt.Println("\n--- Asking about French cuisine ---")
+	answer, err = agent0.AskStreamWithMemory("What is the best French dish?",
 		func(chunk snip.ChatResponse) error {
 			fmt.Print(chunk.Text)
 			return nil

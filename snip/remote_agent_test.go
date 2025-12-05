@@ -498,13 +498,13 @@ func TestRemoteAgentAsk(t *testing.T) {
 			ChatEndPoint: server.URL,
 		}
 
-		answer, err := agent.Ask("Test question")
+		answer, err := agent.AskWithMemory("Test question")
 		if err != nil {
-			t.Errorf("Ask() unexpected error: %v", err)
+			t.Errorf("AskWithMemory() unexpected error: %v", err)
 		}
 
 		if answer.Text != "Test answer" {
-			t.Errorf("Ask() = %q, want %q", answer.Text, "Test answer")
+			t.Errorf("AskWithMemory() = %q, want %q", answer.Text, "Test answer")
 		}
 	})
 
@@ -524,13 +524,13 @@ func TestRemoteAgentAsk(t *testing.T) {
 			ChatEndPoint: server.URL,
 		}
 
-		answer, err := agent.Ask("Test question")
+		answer, err := agent.AskWithMemory("Test question")
 		if err != nil {
-			t.Errorf("Ask() unexpected error: %v", err)
+			t.Errorf("AskWithMemory() unexpected error: %v", err)
 		}
 
 		if answer.Text != "Direct answer" {
-			t.Errorf("Ask() = %q, want %q", answer.Text, "Direct answer")
+			t.Errorf("AskWithMemory() = %q, want %q", answer.Text, "Direct answer")
 		}
 	})
 
@@ -552,9 +552,9 @@ func TestRemoteAgentAsk(t *testing.T) {
 			ChatEndPoint: server.URL,
 		}
 
-		_, err := agent.Ask("  \n  Trimmed question  \n  ")
+		_, err := agent.AskWithMemory("  \n  Trimmed question  \n  ")
 		if err != nil {
-			t.Errorf("Ask() unexpected error: %v", err)
+			t.Errorf("AskWithMemory() unexpected error: %v", err)
 		}
 	})
 
@@ -568,9 +568,9 @@ func TestRemoteAgentAsk(t *testing.T) {
 			ChatEndPoint: server.URL,
 		}
 
-		_, err := agent.Ask("Test question")
+		_, err := agent.AskWithMemory("Test question")
 		if err == nil {
-			t.Error("Ask() expected error for HTTP 500, got nil")
+			t.Error("AskWithMemory() expected error for HTTP 500, got nil")
 		}
 	})
 
@@ -590,13 +590,13 @@ func TestRemoteAgentAsk(t *testing.T) {
 			ChatEndPoint: server.URL,
 		}
 
-		_, err := agent.Ask("Test question")
+		_, err := agent.AskWithMemory("Test question")
 		if err == nil {
-			t.Error("Ask() expected error for no extractable message, got nil")
+			t.Error("AskWithMemory() expected error for no extractable message, got nil")
 		}
 
 		if !strings.Contains(err.Error(), "unable to extract message") {
-			t.Errorf("Ask() error = %q, want error containing 'unable to extract message'", err.Error())
+			t.Errorf("AskWithMemory() error = %q, want error containing 'unable to extract message'", err.Error())
 		}
 	})
 }

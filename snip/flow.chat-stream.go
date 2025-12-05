@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"strings"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core"
@@ -12,15 +11,15 @@ import (
 )
 
 // EnableChatStreamFlowWithMemory initializes the chat stream flow for the agent
-func EnableChatStreamFlowWithMemory() AgentOption {
+func EnableChatStreamFlow() AgentOption {
 	return func(agent *Agent) {
-		initializeChatStreamFlowWithMemory(agent)
+		initializeChatStreamFlow(agent)
 	}
 }
 
-func initializeChatStreamFlowWithMemory(agent *Agent) {
+func initializeChatStreamFlow(agent *Agent) {
 
-	chatStreamFlowWithMemory := genkit.DefineStreamingFlow(agent.genKitInstance, agent.Name+"-chat-stream-flow-with-memory",
+	chatStreamFlow := genkit.DefineStreamingFlow(agent.genKitInstance, agent.Name+"-chat-stream-flow-with-memory",
 		func(ctx context.Context, input *ChatRequest, callback core.StreamCallback[ChatResponse]) (*ChatResponse, error) {
 
 			// Create a cancellable context for this streaming request
@@ -47,9 +46,9 @@ func initializeChatStreamFlowWithMemory(agent *Agent) {
 				ai.WithSystem(agent.SystemInstructions),
 				ai.WithPrompt(input.UserMessage),
 				ai.WithConfig(agent.Config.ToOpenAIParams()),
-				ai.WithMessages(
-					agent.Messages...,
-				),
+				// ai.WithMessages(
+				// 	agent.Messages...,
+				// ),
 				ai.WithStreaming(func(ctx context.Context, chunk *ai.ModelResponseChunk) error {
 					// Check if the context has been cancelled
 					select {
@@ -88,13 +87,13 @@ func initializeChatStreamFlowWithMemory(agent *Agent) {
 
 			// === CONVERSATIONAL MEMORY ===
 
-			// USER MESSAGE: append user message to history
-			agent.Messages = append(agent.Messages, ai.NewUserTextMessage(strings.TrimSpace(input.UserMessage)))
-			// ASSISTANT MESSAGE: append assistant response to history
-			agent.Messages = append(agent.Messages, ai.NewModelTextMessage(strings.TrimSpace(resp.Text())))
+			// // USER MESSAGE: append user message to history
+			// agent.Messages = append(agent.Messages, ai.NewUserTextMessage(strings.TrimSpace(input.UserMessage)))
+			// // ASSISTANT MESSAGE: append assistant response to history
+			// agent.Messages = append(agent.Messages, ai.NewModelTextMessage(strings.TrimSpace(resp.Text())))
 
-			// DEBUG: print conversation history
-			displayConversationHistory(agent)
+			// // DEBUG: print conversation history
+			// displayConversationHistory(agent)
 
 			// Clean up the stream context
 			agent.streamCancel = nil
@@ -106,5 +105,5 @@ func initializeChatStreamFlowWithMemory(agent *Agent) {
 				FinishMessage: resp.FinishMessage,
 			}, nil
 		})
-	agent.chatStreamFlowWithMemory = chatStreamFlowWithMemory
+	agent.chatStreamFlow = chatStreamFlow
 }

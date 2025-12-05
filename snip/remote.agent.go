@@ -111,6 +111,12 @@ func (agent *RemoteAgent) ReplaceMessagesWith(messages []*ai.Message) error {
 	return fmt.Errorf("ReplaceMessagesWith is not supported for remote agents: message history is managed by the remote server")
 }
 
+func (agent *RemoteAgent) ReplaceMessagesWithSystemMessages(systemMessages []string) error {
+	// Remote agents do not support replacing messages directly
+	// Message management must be done on the server side
+	return fmt.Errorf("ReplaceMessagesWithSystemMessages is not supported for remote agents: message history is managed by the remote server")
+}
+
 func (agent *RemoteAgent) GetInfo() (AgentInfo, error) {
 	// Create HTTP GET request to information endpoint
 	req, err := http.NewRequest("GET", agent.InformationEndpoint, nil)
@@ -200,7 +206,7 @@ func (agent *RemoteAgent) GetCurrentContextSize() int {
 	return totalContextSize
 }
 
-func (agent *RemoteAgent) Ask(question string) (ChatResponse, error) {
+func (agent *RemoteAgent) AskWithMemory(question string) (ChatResponse, error) {
 	// Prepare request
 	reqBody := RemoteChatRequest{}
 	reqBody.Data.Message = strings.TrimSpace(question)
@@ -281,7 +287,7 @@ func (agent *RemoteAgent) Ask(question string) (ChatResponse, error) {
 	return ChatResponse{}, fmt.Errorf("unable to extract message from response")
 }
 
-func (agent *RemoteAgent) AskStream(question string, callback func(ChatResponse) error) (ChatResponse, error) {
+func (agent *RemoteAgent) AskStreamWithMemory(question string, callback func(ChatResponse) error) (ChatResponse, error) {
 	// Prepare request
 	reqBody := RemoteChatRequest{}
 	reqBody.Data.Message = strings.TrimSpace(question)
@@ -400,4 +406,16 @@ func (agent *RemoteAgent) AskStream(question string, callback func(ChatResponse)
 	// so we don't need to send an additional one here (unlike local agents)
 
 	return ChatResponse{Text: fullResponse}, callbackErr
+}
+
+// Ask is an alias for AskWithMemory for RemoteAgent
+// Remote agents delegate memory management to the server
+func (agent *RemoteAgent) Ask(question string) (ChatResponse, error) {
+	return agent.AskWithMemory(question)
+}
+
+// AskStream is an alias for AskStreamWithMemory for RemoteAgent
+// Remote agents delegate memory management to the server
+func (agent *RemoteAgent) AskStream(question string, callback func(ChatResponse) error) (ChatResponse, error) {
+	return agent.AskStreamWithMemory(question, callback)
 }

@@ -46,7 +46,7 @@ func main() {
 		return
 	}
 
-	answer, err := agent0.AskStream("What is the best pizza of the world?",
+	answer, err := agent0.AskStreamWithMemory("What is the best pizza of the world?",
 		func(chunk snip.ChatResponse) error {
 			fmt.Print(chunk.Text)
 			return nil
@@ -79,7 +79,7 @@ func main() {
 
 	fmt.Printf("Messages after adding context: %d\n", len(agent0.GetMessages()))
 
-	answer, err = agent0.AskStream("Who invented Hawaiian pizza?",
+	answer, err = agent0.AskStreamWithMemory("Who invented Hawaiian pizza?",
 		func(chunk snip.ChatResponse) error {
 			fmt.Print(chunk.Text)
 			return nil
@@ -101,7 +101,7 @@ func main() {
 	fmt.Println()
 	fmt.Println("\n--- Add again knowledge base context ---")
 
-	answer, err = agent0.AskStream("What is Hawaiian pizza?",
+	answer, err = agent0.AskStreamWithMemory("What is Hawaiian pizza?",
 		func(chunk snip.ChatResponse) error {
 			fmt.Print(chunk.Text)
 			return nil

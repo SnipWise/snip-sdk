@@ -153,7 +153,7 @@ log.Printf("TopP: %.2f", info.Config.TopP)
 ### Non-streaming Communication
 
 ```go
-response, err := remoteAgent.Ask("What is Go programming language?")
+response, err := remoteAgent.AskWithMemory("What is Go programming language?")
 if err != nil {
     log.Fatalf("❌ Error asking question: %v", err)
 }
@@ -163,7 +163,7 @@ fmt.Println(response)
 ### Streaming Communication
 
 ```go
-fullResponse, err := remoteAgent.AskStream(
+fullResponse, err := remoteAgent.AskStreamWithMemory(
     "Explain what are goroutines in 2 sentences",
     func(chunk string) error {
         fmt.Print(chunk)
@@ -178,7 +178,7 @@ if err != nil {
 ### Testing Memory with Follow-up Questions
 
 ```go
-response3, err := remoteAgent.Ask("What are the benefits of using it?")
+response3, err := remoteAgent.AskWithMemory("What are the benefits of using it?")
 if err != nil {
     log.Fatalf("❌ Error asking follow-up question: %v", err)
 }

@@ -32,7 +32,7 @@ func main() {
 		return
 	}
 
-	response, err := agent0.Ask("What is the capital of France?")
+	response, err := agent0.AskWithMemory("What is the capital of France?")
 	if err != nil {
 		fmt.Printf("Error asking question: %v\n", err)
 		return

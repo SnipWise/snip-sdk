@@ -38,8 +38,12 @@ type Agent struct {
 
 	genKitInstance *genkit.Genkit
 
+	chatStreamFlowWithMemory *core.Flow[*ChatRequest, *ChatResponse, ChatResponse]
+	chatFlowWithMemory       *core.Flow[*ChatRequest, *ChatResponse, struct{}]
+
+	chatFlow *core.Flow[*ChatRequest, *ChatResponse, struct{}]
 	chatStreamFlow *core.Flow[*ChatRequest, *ChatResponse, ChatResponse]
-	chatFlow       *core.Flow[*ChatRequest, *ChatResponse, struct{}]
+
 
 	serverConfig *ConfigHTTP
 	httpServer   *http.Server
@@ -50,65 +54,6 @@ type Agent struct {
 	streamCtx    context.Context
 }
 
-func (agent *Agent) GetName() string {
-	return agent.Name
-}
-
-func (agent *Agent) GetMessages() []*ai.Message {
-	return agent.Messages
-}
-
-func (agent *Agent) GetCurrentContextSize() int {
-	totalContextSize := len(agent.SystemInstructions)
-	for _, msg := range agent.Messages {
-		for _, content := range msg.Content {
-			totalContextSize += len(content.Text)
-		}
-	}
-	return totalContextSize
-}
-
-func (agent *Agent) Kind() AgentKind {
-	return Basic
-}
-
-func (agent *Agent) AddSystemMessage(context string) error {
-	// Add a system message to the conversation history
-	agent.Messages = append(agent.Messages, ai.NewSystemTextMessage(strings.TrimSpace(context)))
-	return nil
-}
-
-func (agent *Agent) ReplaceMessagesWith(messages []*ai.Message) error {
-	// Replace the entire conversation history with new messages
-	if messages == nil {
-		return fmt.Errorf("messages cannot be nil")
-	}
-	agent.Messages = messages
-	return nil
-}
-
-func (agent *Agent) GetInfo() (AgentInfo, error) {
-	return AgentInfo{
-		Name:    agent.Name,
-		Config:  agent.Config,
-		ModelID: agent.ModelID,
-	}, nil
-}
-
-// ping checks if the model is available by sending a simple prompt
-// func ping(ctx context.Context, genKitInstance *genkit.Genkit, modelID string) error {
-// 	log.Println("⏳ model availability check in progress...")
-// 	_, err := genkit.Generate(
-// 		ctx,
-// 		genKitInstance,
-// 		ai.WithModelName("openai/"+modelID),
-// 		ai.WithPrompt(""),
-// 	)
-// 	if err != nil {
-// 		return fmt.Errorf("model not available: %w", err)
-// 	}
-// 	return nil
-// }
 
 func NewAgent(ctx context.Context, agentConfig AgentConfig, modelConfig ModelConfig, opts ...AgentOption) (*Agent, error) {
 	oaiPlugin := &oai.OpenAI{
@@ -151,6 +96,122 @@ func NewAgent(ctx context.Context, agentConfig AgentConfig, modelConfig ModelCon
 
 }
 
+func (agent *Agent) GetName() string {
+	return agent.Name
+}
+
+func (agent *Agent) GetMessages() []*ai.Message {
+	return agent.Messages
+}
+
+func (agent *Agent) GetCurrentContextSize() int {
+	totalContextSize := len(agent.SystemInstructions)
+	for _, msg := range agent.Messages {
+		for _, content := range msg.Content {
+			totalContextSize += len(content.Text)
+		}
+	}
+	return totalContextSize
+}
+
+func (agent *Agent) Kind() AgentKind {
+	return Basic
+}
+
+func (agent *Agent) AddSystemMessage(context string) error {
+	// Add a system message to the conversation history
+	agent.Messages = append(agent.Messages, ai.NewSystemTextMessage(strings.TrimSpace(context)))
+	return nil
+}
+
+func (agent *Agent) ReplaceMessagesWith(messages []*ai.Message) error {
+	// Replace the entire conversation history with new messages
+	if messages == nil {
+		return fmt.Errorf("messages cannot be nil")
+	}
+	agent.Messages = messages
+	return nil
+}
+
+func (agent *Agent) ReplaceMessagesWithSystemMessages(systemMessages []string) error {
+	// Replace the entire conversation history with system messages
+	if systemMessages == nil {
+		return fmt.Errorf("systemMessages cannot be nil")
+	}
+
+	// Create new message slice with system messages
+	newMessages := make([]*ai.Message, 0, len(systemMessages))
+	for _, msg := range systemMessages {
+		newMessages = append(newMessages, ai.NewSystemTextMessage(strings.TrimSpace(msg)))
+	}
+
+	agent.Messages = newMessages
+	return nil
+}
+
+func (agent *Agent) GetInfo() (AgentInfo, error) {
+	return AgentInfo{
+		Name:    agent.Name,
+		Config:  agent.Config,
+		ModelID: agent.ModelID,
+	}, nil
+}
+
+
+// IMPORTANT: this function uses the chat flow with memory
+func (agent *Agent) AskWithMemory(question string) (ChatResponse, error) {
+	if agent.chatFlowWithMemory == nil {
+		return ChatResponse{}, fmt.Errorf("chat flow is not initialized")
+	}
+	resp, err := agent.chatFlowWithMemory.Run(agent.ctx, &ChatRequest{
+		UserMessage: question,
+	})
+	if err != nil {
+		return ChatResponse{}, err
+	}
+	return *resp, nil
+
+}
+// IMPORTANT: this function uses the chat stream flow with memory
+func (agent *Agent) AskStreamWithMemory(question string, callback func(ChatResponse) error) (ChatResponse, error) {
+	if agent.chatStreamFlowWithMemory == nil {
+		return ChatResponse{}, fmt.Errorf("chat stream flow is not initialized")
+	}
+	// Streaming channel of results
+	streamCh := agent.chatStreamFlowWithMemory.Stream(agent.ctx, &ChatRequest{
+		UserMessage: question,
+	})
+
+	finalAnswer := ""
+	var finalResponse ChatResponse
+	for result, err := range streamCh {
+		// Check for errors from the stream
+		if err != nil {
+			// Return both the partial answer and the error
+			return ChatResponse{Text: finalAnswer}, fmt.Errorf("streaming error: %w", err)
+		}
+
+		// Check for nil result (defensive programming)
+		if result == nil {
+			continue
+		}
+
+		if !result.Done {
+			finalAnswer += result.Stream.Text
+			err := callback(result.Stream)
+			if err != nil {
+				return ChatResponse{Text: finalAnswer}, err
+			}
+		} else {
+			// Store the final response with all metadata
+			finalResponse = *result.Output
+		}
+	}
+
+	return finalResponse, nil
+}
+
+// IMPORTANT: this function uses the chat flow WITHOUT memory
 func (agent *Agent) Ask(question string) (ChatResponse, error) {
 	if agent.chatFlow == nil {
 		return ChatResponse{}, fmt.Errorf("chat flow is not initialized")
@@ -162,9 +223,9 @@ func (agent *Agent) Ask(question string) (ChatResponse, error) {
 		return ChatResponse{}, err
 	}
 	return *resp, nil
-
 }
 
+// IMPORTANT: this function uses the chat stream flow WITHOUT memory
 func (agent *Agent) AskStream(question string, callback func(ChatResponse) error) (ChatResponse, error) {
 	if agent.chatStreamFlow == nil {
 		return ChatResponse{}, fmt.Errorf("chat stream flow is not initialized")
@@ -202,6 +263,8 @@ func (agent *Agent) AskStream(question string, callback func(ChatResponse) error
 
 	return finalResponse, nil
 }
+
+
 
 // Serve starts the HTTP server with the configured endpoints for the agent's flows
 // The server automatically handles SIGINT (Ctrl+C) and SIGTERM signals for graceful shutdown
@@ -264,15 +327,16 @@ func (agent *Agent) Serve() error {
 	})
 	log.Printf("[%s] Registered endpoint: GET %s", agent.Name, informationPath)
 
+	// IMPORTANT: with memory flows
 	// Register chat flow endpoint if available
-	if agent.chatFlow != nil && agent.serverConfig.ChatFlowHandler != nil {
+	if agent.chatFlowWithMemory != nil && agent.serverConfig.ChatFlowHandler != nil {
 		chatFlowPath := agent.serverConfig.ChatFlowPath
 		mux.HandleFunc("POST "+chatFlowPath, agent.serverConfig.ChatFlowHandler)
 		log.Printf("[%s] Registered endpoint: POST %s", agent.Name, chatFlowPath)
 	}
-
+	// IMPORTANT: with memory flows
 	// Register chat stream flow endpoint if available
-	if agent.chatStreamFlow != nil && agent.serverConfig.ChatStreamFlowHandler != nil {
+	if agent.chatStreamFlowWithMemory != nil && agent.serverConfig.ChatStreamFlowHandler != nil {
 		chatStreamFlowPath := agent.serverConfig.ChatStreamFlowPath
 		mux.HandleFunc("POST "+chatStreamFlowPath, agent.serverConfig.ChatStreamFlowHandler)
 		log.Printf("[%s] Registered endpoint: POST %s", agent.Name, chatStreamFlowPath)

@@ -1,5 +1,5 @@
 #!/bin/bash
-SERVICE_URL=${SERVICE_URL:-"http://0.0.0.0:9100/api/chat-stream"}
+SERVICE_URL=${SERVICE_URL:-"http://0.0.0.0:9200/api/chat-stream"}
 
 read -r -d '' USER_CONTENT <<- EOM
 Hello, my name is Bob Morane. Tell me a story about your adventures.

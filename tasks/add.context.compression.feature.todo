@@ -3,6 +3,9 @@ with
 
 snip.EnableContextCompression(CompressorAgent), --> Flow or Not Flow ? ==> Actually, Change the Flow
 
+in this case the compression will be automatic depending some parameters
+
+
 the agent
   - ModelID
   - Compress after a total Size of ...
