@@ -419,3 +419,15 @@ func (agent *RemoteAgent) Ask(question string) (ChatResponse, error) {
 func (agent *RemoteAgent) AskStream(question string, callback func(ChatResponse) error) (ChatResponse, error) {
 	return agent.AskStreamWithMemory(question, callback)
 }
+
+// CompressContext is not supported for remote agents
+// Context compression must be performed on the server side
+func (agent *RemoteAgent) CompressContext() (ChatResponse, error) {
+	return ChatResponse{}, fmt.Errorf("CompressContext is not supported for remote agents: compression must be performed on the server side")
+}
+
+// CompressContextStream is not supported for remote agents
+// Context compression must be performed on the server side
+func (agent *RemoteAgent) CompressContextStream(callback func(ChatResponse) error) (ChatResponse, error) {
+	return ChatResponse{}, fmt.Errorf("CompressContextStream is not supported for remote agents: compression must be performed on the server side")
+}

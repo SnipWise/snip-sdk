@@ -90,12 +90,15 @@ curl -X POST http://0.0.0.0:9100/api/chat-stream \
 ### Creating the Server Agent
 
 ```go
-agentOne := snip.NewAgent(ctx,
-    "HTTP_Agent_1",
-    "You are a helpful assistant.",
-    chatModelId,
-    engineURL,
-    snip.Config{
+agentOne, err := snip.NewAgent(
+    ctx,
+    snip.AgentConfig{
+        Name:               "HTTP_Agent_1",
+        SystemInstructions: "You are a helpful assistant.",
+        ModelID:            chatModelId,
+        EngineURL:          engineURL,
+    },
+    snip.ModelConfig{
         Temperature: 0.5,
         TopP:        0.9,
     },
@@ -109,6 +112,9 @@ agentOne := snip.NewAgent(ctx,
         ShutdownPath:       "/server/shutdown",
     }),
 )
+if err != nil {
+    log.Fatalf("Failed to create agent: %v", err)
+}
 ```
 
 ### Starting the Server in a Goroutine
@@ -165,8 +171,8 @@ fmt.Println(response)
 ```go
 fullResponse, err := remoteAgent.AskStreamWithMemory(
     "Explain what are goroutines in 2 sentences",
-    func(chunk string) error {
-        fmt.Print(chunk)
+    func(chunk snip.ChatResponse) error {
+        fmt.Print(chunk.Text)
         return nil
     },
 )

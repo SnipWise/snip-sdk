@@ -17,7 +17,7 @@ type AIAgent interface {
 	GetMessages() []*ai.Message
 
 	ReplaceMessagesWith(messages []*ai.Message) error
-	
+
 	ReplaceMessagesWithSystemMessages(systemMessages []string) error
 
 	GetCurrentContextSize() int
@@ -25,6 +25,10 @@ type AIAgent interface {
 	GetInfo() (AgentInfo, error)
 	Kind() AgentKind
 	AddSystemMessage(context string) error
+
+	// Context compression methods (require EnableContextCompression option)
+	CompressContext() (ChatResponse, error)
+	CompressContextStream(callback func(ChatResponse) error) (ChatResponse, error)
 }
 
 // TODO: add helpers to handle the messages

@@ -3,7 +3,7 @@ package snip
 import "github.com/firebase/genkit/go/ai"
 
 // CompressorAgentInterface defines the contract for compression agents
-type CompressorAgentInterface interface {
+type AICompressorAgent interface {
 	// GetName returns the name of the agent
 	GetName() string
 

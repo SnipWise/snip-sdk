@@ -139,3 +139,24 @@ func (c *CompressorAgent) CompressMessagesStream(messages []*ai.Message, callbac
 	text := textBuilder.String()
 	return c.CompressTextStream(text, callback)
 }
+
+
+type CompressionPrompts struct {
+	Minimalist string
+	Structured string
+	UltraShort string
+	ContinuityFocus string
+}
+
+var DefaultCompressionPrompts = CompressionPrompts{
+	//recommended
+	Minimalist: `Summarize the conversation history concisely, preserving key facts, decisions, and context needed for continuation.`,
+	Structured: `Compress this conversation into a brief summary including:
+		- Main topics discussed
+		- Key decisions/conclusions
+		- Important context for next exchanges
+		Keep it under 200 words.
+	`,
+	UltraShort: `Summarize this conversation: extract key facts, decisions, and essential context only.`,
+	ContinuityFocus: `Create a compact summary of this conversation that preserves all information needed to continue the discussion naturally.`,
+}

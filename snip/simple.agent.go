@@ -52,6 +52,8 @@ type Agent struct {
 	// streamCancel cancels the current streaming completion
 	streamCancel context.CancelFunc
 	streamCtx    context.Context
+
+	compressorAgent AICompressorAgent
 }
 
 
@@ -492,6 +494,57 @@ func (agent *Agent) Stop() error {
 	//log.Println("Server stopped")
 	log.Printf("[%s] Server stopped", agent.Name)
 	return nil
+}
+
+// CompressContext compresses the conversation history using the configured compressor agent
+// Returns an error if no compressor agent is configured
+// The compression result is returned as a ChatResponse
+// After compression, the agent's messages are replaced with a single system message containing the compressed context
+func (agent *Agent) CompressContext() (ChatResponse, error) {
+	if agent.compressorAgent == nil {
+		return ChatResponse{}, fmt.Errorf("no compressor agent configured, use EnableContextCompression option")
+	}
+
+	response, err := agent.compressorAgent.CompressMessages(agent.Messages)
+	if err != nil {
+		return ChatResponse{}, err
+	}
+
+	// Replace the agent's messages with the compressed context
+	compressedMessages := []*ai.Message{
+		ai.NewSystemTextMessage(strings.TrimSpace(response.Text)),
+	}
+	if err := agent.ReplaceMessagesWith(compressedMessages); err != nil {
+		return ChatResponse{}, err
+	}
+
+	return response, nil
+}
+
+// CompressContextStream compresses the conversation history using streaming with the configured compressor agent
+// Returns an error if no compressor agent is configured
+// The callback function is called for each streamed chunk
+// The final compression result is returned as a ChatResponse
+// After compression, the agent's messages are replaced with a single system message containing the compressed context
+func (agent *Agent) CompressContextStream(callback func(ChatResponse) error) (ChatResponse, error) {
+	if agent.compressorAgent == nil {
+		return ChatResponse{}, fmt.Errorf("no compressor agent configured, use EnableContextCompression option")
+	}
+
+	response, err := agent.compressorAgent.CompressMessagesStream(agent.Messages, callback)
+	if err != nil {
+		return ChatResponse{}, err
+	}
+
+	// Replace the agent's messages with the compressed context
+	compressedMessages := []*ai.Message{
+		ai.NewSystemTextMessage(strings.TrimSpace(response.Text)),
+	}
+	if err := agent.ReplaceMessagesWith(compressedMessages); err != nil {
+		return ChatResponse{}, err
+	}
+
+	return response, nil
 }
 
 func displayConversationHistory(agent *Agent) {
