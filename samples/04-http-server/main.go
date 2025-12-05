@@ -5,7 +5,7 @@ import (
 	"log"
 
 	"github.com/snipwise/snip-sdk/env"
-	"github.com/snipwise/snip-sdk/smart"
+	"github.com/snipwise/snip-sdk/snip"
 )
 
 func main() {
@@ -14,20 +14,20 @@ func main() {
 	chatModelId := env.GetEnvOrDefault("CHAT_MODEL", "hf.co/menlo/jan-nano-gguf:q4_k_m")
 
 	// Create an agent with both chat flows enabled and HTTP server configuration
-	agent := smart.NewAgent(ctx,
-		smart.AgentConfig{
+	agent, err := snip.NewAgent(ctx,
+		snip.AgentConfig{
 			Name:               "HTTP Agent",
 			SystemInstructions: "You are a helpful assistant.",
 			ModelID:            chatModelId,
 			EngineURL:          engineURL,
 		},
-		smart.ModelConfig{
+		snip.ModelConfig{
 			Temperature: 0.5,
 			TopP:        0.9,
 		},
-		smart.EnableChatFlowWithMemory(),
-		smart.EnableChatStreamFlowWithMemory(),
-		smart.EnableServer(smart.ConfigHTTP{
+		snip.EnableChatFlowWithMemory(),
+		snip.EnableChatStreamFlowWithMemory(),
+		snip.EnableServer(snip.ConfigHTTP{
 			Address:            "0.0.0.0:9100",
 			ChatFlowPath:       "/api/chat",
 			ChatStreamFlowPath: "/api/chat-stream",
@@ -36,6 +36,9 @@ func main() {
 
 		}),
 	)
+	if err != nil {
+		log.Fatalf("Error creating agent: %v", err)
+	}
 
 	log.Printf("Agent '%s' created successfully", agent.GetName())
 	log.Println("Available endpoints:")

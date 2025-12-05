@@ -236,7 +236,7 @@ Each server is configured independently using the `EnableServer` option with dif
 
 **Agent One:**
 ```go
-smart.EnableServer(smart.ConfigHTTP{
+snip.EnableServer(snip.ConfigHTTP{
     Address:            "0.0.0.0:9100",
     ChatFlowPath:       "/api/chat",
     ChatStreamFlowPath: "/api/chat-stream",
@@ -247,7 +247,7 @@ smart.EnableServer(smart.ConfigHTTP{
 
 **Agent Two:**
 ```go
-smart.EnableServer(smart.ConfigHTTP{
+snip.EnableServer(snip.ConfigHTTP{
     Address:            "0.0.0.0:9200",
     ChatFlowPath:       "/api/chat",
     ChatStreamFlowPath: "/api/chat-stream",
@@ -294,7 +294,7 @@ type ConfigHTTP struct {
 
 **Using default paths:**
 ```go
-smart.EnableServer(smart.ConfigHTTP{
+snip.EnableServer(snip.ConfigHTTP{
     Address: "0.0.0.0:9100",
     // All paths will use defaults:
     // ChatFlowPath: "/api/chat"
@@ -306,7 +306,7 @@ smart.EnableServer(smart.ConfigHTTP{
 
 **Custom paths:**
 ```go
-smart.EnableServer(smart.ConfigHTTP{
+snip.EnableServer(snip.ConfigHTTP{
     Address:            "0.0.0.0:9100",
     ChatFlowPath:       "/api/chat",
     ChatStreamFlowPath: "/api/chat-stream",
@@ -317,7 +317,7 @@ smart.EnableServer(smart.ConfigHTTP{
 
 **Disable shutdown endpoint:**
 ```go
-smart.EnableServer(smart.ConfigHTTP{
+snip.EnableServer(snip.ConfigHTTP{
     Address:      "0.0.0.0:9100",
     ShutdownPath: "-", // Disables the shutdown endpoint
 })
@@ -353,7 +353,7 @@ SERVICE_URL="http://0.0.0.0:9200/api/chat-stream" ./02-call-chat-stream.sh
 You can provide custom HTTP handlers if needed:
 
 ```go
-smart.EnableServer(smart.ConfigHTTP{
+snip.EnableServer(snip.ConfigHTTP{
     Address: "0.0.0.0:9100",
     ChatFlowHandler: func(w http.ResponseWriter, r *http.Request) {
         // Custom handler logic

@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/snipwise/snip-sdk/env"
-	"github.com/snipwise/snip-sdk/smart"
+	"github.com/snipwise/snip-sdk/snip"
 )
 
 func main() {
@@ -21,13 +21,13 @@ func main() {
 	// Stack errors during RAG agents creation
 	var errs []error
 
-	ragAgent01, err := smart.NewRagAgent(ctx,
-		smart.RagAgentConfig{
+	ragAgent01, err := snip.NewRagAgent(ctx,
+		snip.RagAgentConfig{
 			Name:      "RAG_Agent_1",
 			ModelID:   firstEmbeddingModelId,
 			EngineURL: engineURL,
 		},
-		smart.StoreConfig{
+		snip.StoreConfig{
 			StoreName: "RAG_Store_1",
 			StorePath: "./data",
 		},
@@ -36,13 +36,13 @@ func main() {
 		errs = append(errs, fmt.Errorf("RAG_Agent_1: %w", err))
 	}
 
-	ragAgent02, err := smart.NewRagAgent(ctx,
-		smart.RagAgentConfig{
+	ragAgent02, err := snip.NewRagAgent(ctx,
+		snip.RagAgentConfig{
 			Name:      "RAG_Agent_2",
 			ModelID:   secondEmbeddingModelId,
 			EngineURL: engineURL,
 		},
-		smart.StoreConfig{
+		snip.StoreConfig{
 			StoreName: "RAG_Store_2",
 			StorePath: "./data",
 		},
@@ -51,13 +51,13 @@ func main() {
 		errs = append(errs, fmt.Errorf("RAG_Agent_2: %w", err))
 	}
 
-	ragAgent03, err := smart.NewRagAgent(ctx,
-		smart.RagAgentConfig{
+	ragAgent03, err := snip.NewRagAgent(ctx,
+		snip.RagAgentConfig{
 			Name:      "RAG_Agent_3",
 			ModelID:   thirdEmbeddingModelId,
 			EngineURL: engineURL,
 		},
-		smart.StoreConfig{
+		snip.StoreConfig{
 			StoreName: "RAG_Store_3",
 			StorePath: "./data",
 		},
@@ -87,9 +87,9 @@ func main() {
 			"Dolphins leap out of the ocean",
 			"Bears fish in the river",
 		}
-		var chunks []smart.TextChunk
+		var chunks []snip.TextChunk
 		for _, txt := range txtChunks {
-			chunk := smart.TextChunk{
+			chunk := snip.TextChunk{
 				Content:  txt,
 				Metadata: map[string]any{"source": "example"},
 			}

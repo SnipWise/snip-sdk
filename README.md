@@ -22,8 +22,8 @@ go test ./... -count=1
 ### Run Tests for Specific Package
 
 ```bash
-# Test the smart package
-go test ./smart -v
+# Test the snip package
+go test ./snip -v
 
 # Test the conversion package
 go test ./conversion -v

@@ -7,7 +7,7 @@ import (
 	"github.com/snipwise/snip-sdk/env"
 	"github.com/snipwise/snip-sdk/files"
 
-	"github.com/snipwise/snip-sdk/smart"
+	"github.com/snipwise/snip-sdk/snip"
 )
 
 func main() {
@@ -28,19 +28,23 @@ func main() {
 		return
 	}
 
-	agent0 := smart.NewAgent(ctx,
-		smart.AgentConfig{
+	agent0, err := snip.NewAgent(ctx,
+		snip.AgentConfig{
 			Name:               "Bob_Agentic_Agent",
 			SystemInstructions: systemInstructions,
 			ModelID:            chatModelId,
 			EngineURL:          engineURL,
 		},
-		smart.ModelConfig{
+		snip.ModelConfig{
 			Temperature: 0.5,
 			TopP:        0.9,
 		},
-		smart.EnableChatStreamFlowWithMemory(),
+		snip.EnableChatStreamFlowWithMemory(),
 	)
+	if err != nil {
+		fmt.Printf("Error creating agent: %v\n", err)
+		return
+	}
 
 	_, err = agent0.AskStream("What is the best pizza of the world?",
 		func(chunk string) error {

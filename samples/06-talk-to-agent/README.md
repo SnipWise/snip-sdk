@@ -90,18 +90,18 @@ curl -X POST http://0.0.0.0:9100/api/chat-stream \
 ### Creating the Server Agent
 
 ```go
-agentOne := smart.NewAgent(ctx,
+agentOne := snip.NewAgent(ctx,
     "HTTP_Agent_1",
     "You are a helpful assistant.",
     chatModelId,
     engineURL,
-    smart.Config{
+    snip.Config{
         Temperature: 0.5,
         TopP:        0.9,
     },
-    smart.EnableChatFlowWithMemory(),
-    smart.EnableChatStreamFlowWithMemory(),
-    smart.EnableServer(smart.ConfigHTTP{
+    snip.EnableChatFlowWithMemory(),
+    snip.EnableChatStreamFlowWithMemory(),
+    snip.EnableServer(snip.ConfigHTTP{
         Address:            "0.0.0.0:9100",
         ChatFlowPath:       "/api/chat",
         ChatStreamFlowPath: "/api/chat-stream",
@@ -125,9 +125,9 @@ go func() {
 ### Creating the Remote Agent Client
 
 ```go
-remoteAgent := smart.NewRemoteAgent(
+remoteAgent := snip.NewRemoteAgent(
     "Remote Knowledge Agent",
-    smart.ConfigHTTP{
+    snip.ConfigHTTP{
         Address:            "0.0.0.0:9100",
         ChatFlowPath:       "/api/chat",
         ChatStreamFlowPath: "/api/chat-stream",

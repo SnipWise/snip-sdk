@@ -166,7 +166,7 @@ There are **three ways** to stop the server:
 The server is configured using the `EnableServer` option:
 
 ```go
-smart.EnableServer(smart.ConfigHTTP{
+snip.EnableServer(snip.ConfigHTTP{
     Address:            "0.0.0.0:9100",
     ChatFlowPath:       "/api/chat",
     ChatStreamFlowPath: "/api/chat-stream",
@@ -213,7 +213,7 @@ type ConfigHTTP struct {
 
 **Using default paths:**
 ```go
-smart.EnableServer(smart.ConfigHTTP{
+snip.EnableServer(snip.ConfigHTTP{
     Address: "0.0.0.0:9100",
     // All paths will use defaults:
     // ChatFlowPath: "/api/chat"
@@ -225,7 +225,7 @@ smart.EnableServer(smart.ConfigHTTP{
 
 **Custom paths:**
 ```go
-smart.EnableServer(smart.ConfigHTTP{
+snip.EnableServer(snip.ConfigHTTP{
     Address:            "0.0.0.0:9100",
     ChatFlowPath:       "/api/chat",
     ChatStreamFlowPath: "/api/chat-stream",
@@ -236,7 +236,7 @@ smart.EnableServer(smart.ConfigHTTP{
 
 **Disable shutdown endpoint:**
 ```go
-smart.EnableServer(smart.ConfigHTTP{
+snip.EnableServer(snip.ConfigHTTP{
     Address:      "0.0.0.0:9100",
     ShutdownPath: "-", // Disables the shutdown endpoint
 })
@@ -265,7 +265,7 @@ SERVICE_URL="http://localhost:8080/custom/path" ./01-call-chat.sh
 You can provide custom HTTP handlers if needed:
 
 ```go
-smart.EnableServer(smart.ConfigHTTP{
+snip.EnableServer(snip.ConfigHTTP{
     Address: "0.0.0.0:9100",
     ChatFlowHandler: func(w http.ResponseWriter, r *http.Request) {
         // Custom handler logic

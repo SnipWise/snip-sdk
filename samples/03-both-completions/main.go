@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/snipwise/snip-sdk/env"
-	"github.com/snipwise/snip-sdk/smart"
+	"github.com/snipwise/snip-sdk/snip"
 )
 
 func main() {
@@ -14,20 +14,24 @@ func main() {
 	engineURL := env.GetEnvOrDefault("MODEL_RUNNER_BASE_URL", "http://localhost:12434/engines/llama.cpp/v1")
 	chatModelId := env.GetEnvOrDefault("CHAT_MODEL", "hf.co/menlo/jan-nano-gguf:q4_k_m")
 
-	agent0 := smart.NewAgent(ctx,
-		smart.AgentConfig{
+	agent0, err := snip.NewAgent(ctx,
+		snip.AgentConfig{
 			Name:               "Local Agent",
 			SystemInstructions: "You are a helpful assistant.",
 			ModelID:            chatModelId,
 			EngineURL:          engineURL,
 		},
-		smart.ModelConfig{
+		snip.ModelConfig{
 			Temperature: 0.5,
 			TopP:        0.9,
 		},
-		smart.EnableChatFlowWithMemory(),
-		smart.EnableChatStreamFlowWithMemory(),
+		snip.EnableChatFlowWithMemory(),
+		snip.EnableChatStreamFlowWithMemory(),
 	)
+	if err != nil {
+		fmt.Printf("Error creating agent: %v\n", err)
+		return
+	}
 
 	//agent0.ModelID = "ai/qwen2.5:latest"
 
