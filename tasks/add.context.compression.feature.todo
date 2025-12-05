@@ -1,0 +1,11 @@
+it could be an agent for this
+with 
+
+snip.EnableContextCompression(CompressorAgent), --> Flow or Not Flow ? ==> Actually, Change the Flow
+
+the agent
+  - ModelID
+  - Compress after a total Size of ...
+  - Prompt to compress
+  GetMessages of another agent
+  SetMessages

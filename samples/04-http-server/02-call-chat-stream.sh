@@ -44,13 +44,24 @@ curl --no-buffer --silent ${SERVICE_URL} \
     -d "${DATA}" \
   | while IFS= read -r line; do
     if [[ $line == data:* ]]; then
-      #echo "🤖> ${line#data: }"
       json_data="${line#data: }"
-      content_chunk=$(echo "$json_data" | jq '.message // empty' 2>/dev/null)
-      if [[ -n "$content_chunk" ]]; then
+
+      # Extract from nested message.response structure (Genkit format)
+      content_chunk=$(echo "$json_data" | jq '.message.response // empty' 2>/dev/null)
+
+      # Check for finish_reason to detect end of stream
+      finish_reason=$(echo "$json_data" | jq -r '.message.finish_reason // empty' 2>/dev/null)
+
+      if [[ -n "$content_chunk" && "$content_chunk" != '""' ]]; then
         result=$(remove_quotes "$content_chunk")
         clean_result=$(unescape_quotes "$result")
         callback "$clean_result"
+      fi
+
+      # Display finish reason if present
+      if [[ -n "$finish_reason" && "$finish_reason" != "null" ]]; then
+        echo ""
+        echo "[Stream completed - Finish reason: $finish_reason]"
       fi
     fi
   done

@@ -43,8 +43,8 @@ func main() {
 	fmt.Printf("Response from Local Agent: %s\n", response)
 
 	_, err = agent0.AskStream("What is the capital of Belgium?",
-		func(chunk string) error {
-			fmt.Print(chunk)
+		func(chunk snip.ChatResponse) error {
+			fmt.Print(chunk.Text)
 			return nil
 		},
 	)
@@ -52,4 +52,5 @@ func main() {
 		fmt.Printf("Error asking question: %v\n", err)
 		return
 	}
+	fmt.Println()
 }

@@ -38,7 +38,7 @@ type Agent struct {
 
 	genKitInstance *genkit.Genkit
 
-	chatStreamFlow *core.Flow[*ChatRequest, *ChatResponse, string]
+	chatStreamFlow *core.Flow[*ChatRequest, *ChatResponse, ChatResponse]
 	chatFlow       *core.Flow[*ChatRequest, *ChatResponse, struct{}]
 
 	serverConfig *ConfigHTTP
@@ -58,6 +58,16 @@ func (agent *Agent) GetMessages() []*ai.Message {
 	return agent.Messages
 }
 
+func (agent *Agent) GetCurrentContextSize() int {
+	totalContextSize := len(agent.SystemInstructions)
+	for _, msg := range agent.Messages {
+		for _, content := range msg.Content {
+			totalContextSize += len(content.Text)
+		}
+	}
+	return totalContextSize
+}
+
 func (agent *Agent) Kind() AgentKind {
 	return Basic
 }
@@ -65,6 +75,15 @@ func (agent *Agent) Kind() AgentKind {
 func (agent *Agent) AddSystemMessage(context string) error {
 	// Add a system message to the conversation history
 	agent.Messages = append(agent.Messages, ai.NewSystemTextMessage(strings.TrimSpace(context)))
+	return nil
+}
+
+func (agent *Agent) ReplaceMessagesWith(messages []*ai.Message) error {
+	// Replace the entire conversation history with new messages
+	if messages == nil {
+		return fmt.Errorf("messages cannot be nil")
+	}
+	agent.Messages = messages
 	return nil
 }
 
@@ -146,9 +165,9 @@ func (agent *Agent) Ask(question string) (ChatResponse, error) {
 
 }
 
-func (agent *Agent) AskStream(question string, callback func(string) error) (string, error) {
+func (agent *Agent) AskStream(question string, callback func(ChatResponse) error) (ChatResponse, error) {
 	if agent.chatStreamFlow == nil {
-		return "", fmt.Errorf("chat stream flow is not initialized")
+		return ChatResponse{}, fmt.Errorf("chat stream flow is not initialized")
 	}
 	// Streaming channel of results
 	streamCh := agent.chatStreamFlow.Stream(agent.ctx, &ChatRequest{
@@ -156,11 +175,12 @@ func (agent *Agent) AskStream(question string, callback func(string) error) (str
 	})
 
 	finalAnswer := ""
+	var finalResponse ChatResponse
 	for result, err := range streamCh {
 		// Check for errors from the stream
 		if err != nil {
 			// Return both the partial answer and the error
-			return finalAnswer, fmt.Errorf("streaming error: %w", err)
+			return ChatResponse{Text: finalAnswer}, fmt.Errorf("streaming error: %w", err)
 		}
 
 		// Check for nil result (defensive programming)
@@ -169,15 +189,18 @@ func (agent *Agent) AskStream(question string, callback func(string) error) (str
 		}
 
 		if !result.Done {
-			finalAnswer += result.Stream
+			finalAnswer += result.Stream.Text
 			err := callback(result.Stream)
 			if err != nil {
-				return finalAnswer, err
+				return ChatResponse{Text: finalAnswer}, err
 			}
+		} else {
+			// Store the final response with all metadata
+			finalResponse = *result.Output
 		}
 	}
 
-	return finalAnswer, nil
+	return finalResponse, nil
 }
 
 // Serve starts the HTTP server with the configured endpoints for the agent's flows

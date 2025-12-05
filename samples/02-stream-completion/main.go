@@ -32,9 +32,19 @@ func main() {
 		return
 	}
 
-	_, err = agent0.AskStream("What is the capital of France?",
-		func(chunk string) error {
-			fmt.Print(chunk)
+	finalResponse, err := agent0.AskStream("What is the capital of France?",
+		func(chunk snip.ChatResponse) error {
+			// During streaming, Text contains the chunk content
+			// At the end, a final chunk is sent with FinishReason and FinishMessage
+			if chunk.Text != "" {
+				fmt.Print(chunk.Text)
+			}
+			// Check if this is the final chunk with metadata
+			if chunk.FinishReason != "" {
+				fmt.Printf("\n\n[Final chunk received]")
+				fmt.Printf("\n  - FinishReason: %s", chunk.FinishReason)
+				fmt.Printf("\n  - FinishMessage: %s", chunk.FinishMessage)
+			}
 			return nil
 		},
 	)
@@ -42,12 +52,24 @@ func main() {
 		fmt.Printf("Error asking question: %v\n", err)
 		return
 	}
+	fmt.Println()
+	fmt.Println(finalResponse)
 
 	fmt.Println("\n---")
 
-	_, err = agent0.AskStream("What is the capital of Belgium?",
-		func(chunk string) error {
-			fmt.Print(chunk)
+	finalResponse, err = agent0.AskStream("What is the capital of Belgium?",
+		func(chunk snip.ChatResponse) error {
+			// During streaming, Text contains the chunk content
+			// At the end, a final chunk is sent with FinishReason and FinishMessage
+			if chunk.Text != "" {
+				fmt.Print(chunk.Text)
+			}
+			// Check if this is the final chunk with metadata
+			if chunk.FinishReason != "" {
+				fmt.Printf("\n\n[Final chunk received]")
+				fmt.Printf("\n  - FinishReason: %s", chunk.FinishReason)
+				fmt.Printf("\n  - FinishMessage: %s", chunk.FinishMessage)
+			}
 			return nil
 		},
 	)
@@ -57,4 +79,5 @@ func main() {
 	}
 
 	fmt.Println()
+	fmt.Println(finalResponse)
 }

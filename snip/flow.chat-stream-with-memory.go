@@ -21,7 +21,7 @@ func EnableChatStreamFlowWithMemory() AgentOption {
 func initializeChatStreamFlow(agent *Agent) {
 
 	chatStreamFlow := genkit.DefineStreamingFlow(agent.genKitInstance, agent.Name+"-chat-stream-flow",
-		func(ctx context.Context, input *ChatRequest, callback core.StreamCallback[string]) (*ChatResponse, error) {
+		func(ctx context.Context, input *ChatRequest, callback core.StreamCallback[ChatResponse]) (*ChatResponse, error) {
 
 			// Create a cancellable context for this streaming request
 			streamCtx, streamCancel := context.WithCancel(ctx)
@@ -56,7 +56,10 @@ func initializeChatStreamFlow(agent *Agent) {
 					case <-streamCtx.Done():
 						return streamCtx.Err()
 					default:
-						return callback(ctx, chunk.Text())
+						// Send ChatResponse with the chunk text
+						return callback(ctx, ChatResponse{
+							Text: chunk.Text(),
+						})
 					}
 				}),
 			)
@@ -72,6 +75,17 @@ func initializeChatStreamFlow(agent *Agent) {
 
 				return nil, fmt.Errorf("generation failed (context size: %d chars): %w", totalContextSize, err)
 			}
+
+			// Send a final callback with complete metadata (FinishReason and FinishMessage)
+			finalChunk := ChatResponse{
+				Text:          "", // Empty text since all text was already streamed
+				FinishReason:  string(resp.FinishReason),
+				FinishMessage: resp.FinishMessage,
+			}
+			if callbackErr := callback(ctx, finalChunk); callbackErr != nil {
+				log.Printf("[%s] ⚠️ Error in final callback: %v", agent.Name, callbackErr)
+			}
+
 			// === CONVERSATIONAL MEMORY ===
 
 			// USER MESSAGE: append user message to history

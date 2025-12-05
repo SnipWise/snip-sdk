@@ -220,6 +220,163 @@ func TestRemoteAgentAddSystemMessage(t *testing.T) {
 }
 
 // ============================================================================
+// Tests for RemoteAgent.GetCurrentContextSize
+// ============================================================================
+
+func TestRemoteAgentGetCurrentContextSize(t *testing.T) {
+	t.Run("with messages", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Return 3 messages
+			messages := []*ai.Message{
+				ai.NewUserTextMessage("Hello"),
+				ai.NewModelTextMessage("Hi there"),
+				ai.NewUserTextMessage("How are you?"),
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(messages)
+		}))
+		defer server.Close()
+
+		agent := &RemoteAgent{
+			GetMessagesEndpoint: server.URL,
+		}
+
+		// Expected size = len("Hello") + len("Hi there") + len("How are you?")
+		// = 5 + 8 + 12 = 25
+		size := agent.GetCurrentContextSize()
+		expectedSize := 25
+		if size != expectedSize {
+			t.Errorf("GetCurrentContextSize() = %d, want %d", size, expectedSize)
+		}
+	})
+
+	t.Run("empty messages", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Return empty array
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("[]"))
+		}))
+		defer server.Close()
+
+		agent := &RemoteAgent{
+			GetMessagesEndpoint: server.URL,
+		}
+
+		size := agent.GetCurrentContextSize()
+		if size != 0 {
+			t.Errorf("GetCurrentContextSize() = %d, want 0", size)
+		}
+	})
+
+	t.Run("http error returns 0", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+		}))
+		defer server.Close()
+
+		agent := &RemoteAgent{
+			GetMessagesEndpoint: server.URL,
+		}
+
+		size := agent.GetCurrentContextSize()
+		if size != 0 {
+			t.Errorf("GetCurrentContextSize() on error = %d, want 0", size)
+		}
+	})
+
+	t.Run("invalid endpoint returns 0", func(t *testing.T) {
+		agent := &RemoteAgent{
+			GetMessagesEndpoint: "http://invalid-host-that-does-not-exist:99999",
+		}
+
+		size := agent.GetCurrentContextSize()
+		if size != 0 {
+			t.Errorf("GetCurrentContextSize() on invalid endpoint = %d, want 0", size)
+		}
+	})
+
+	t.Run("invalid json returns 0", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("invalid json"))
+		}))
+		defer server.Close()
+
+		agent := &RemoteAgent{
+			GetMessagesEndpoint: server.URL,
+		}
+
+		size := agent.GetCurrentContextSize()
+		if size != 0 {
+			t.Errorf("GetCurrentContextSize() on invalid JSON = %d, want 0", size)
+		}
+	})
+}
+
+// ============================================================================
+// Tests for RemoteAgent.ReplaceMessagesWith
+// ============================================================================
+
+func TestRemoteAgentReplaceMessages(t *testing.T) {
+	t.Run("returns error - not supported", func(t *testing.T) {
+		agent := &RemoteAgent{
+			Name: "test-agent",
+		}
+
+		newMessages := []*ai.Message{
+			ai.NewUserTextMessage("Hello"),
+			ai.NewModelTextMessage("Hi there"),
+		}
+
+		err := agent.ReplaceMessagesWith(newMessages)
+		if err == nil {
+			t.Error("ReplaceMessagesWith() expected error, got nil")
+		}
+
+		expectedMsg := "ReplaceMessagesWith is not supported for remote agents"
+		if !strings.Contains(err.Error(), expectedMsg) {
+			t.Errorf("ReplaceMessagesWith() error = %q, want error containing %q", err.Error(), expectedMsg)
+		}
+	})
+
+	t.Run("returns error with nil messages", func(t *testing.T) {
+		agent := &RemoteAgent{
+			Name: "test-agent",
+		}
+
+		err := agent.ReplaceMessagesWith(nil)
+		if err == nil {
+			t.Error("ReplaceMessagesWith(nil) expected error, got nil")
+		}
+
+		expectedMsg := "ReplaceMessagesWith is not supported for remote agents"
+		if !strings.Contains(err.Error(), expectedMsg) {
+			t.Errorf("ReplaceMessagesWith(nil) error = %q, want error containing %q", err.Error(), expectedMsg)
+		}
+	})
+
+	t.Run("returns error with empty slice", func(t *testing.T) {
+		agent := &RemoteAgent{
+			Name: "test-agent",
+		}
+
+		err := agent.ReplaceMessagesWith([]*ai.Message{})
+		if err == nil {
+			t.Error("ReplaceMessagesWith([]) expected error, got nil")
+		}
+
+		expectedMsg := "ReplaceMessagesWith is not supported for remote agents"
+		if !strings.Contains(err.Error(), expectedMsg) {
+			t.Errorf("ReplaceMessagesWith([]) error = %q, want error containing %q", err.Error(), expectedMsg)
+		}
+	})
+}
+
+// ============================================================================
 // Tests for RemoteAgent.GetInfo
 // ============================================================================
 
@@ -346,8 +503,8 @@ func TestRemoteAgentAsk(t *testing.T) {
 			t.Errorf("Ask() unexpected error: %v", err)
 		}
 
-		if answer != "Test answer" {
-			t.Errorf("Ask() = %q, want %q", answer, "Test answer")
+		if answer.Text != "Test answer" {
+			t.Errorf("Ask() = %q, want %q", answer.Text, "Test answer")
 		}
 	})
 
@@ -372,8 +529,8 @@ func TestRemoteAgentAsk(t *testing.T) {
 			t.Errorf("Ask() unexpected error: %v", err)
 		}
 
-		if answer != "Direct answer" {
-			t.Errorf("Ask() = %q, want %q", answer, "Direct answer")
+		if answer.Text != "Direct answer" {
+			t.Errorf("Ask() = %q, want %q", answer.Text, "Direct answer")
 		}
 	})
 

@@ -107,8 +107,15 @@ func main() {
 
 	fullResponse, err := remoteAgent.AskStream(
 		"Explain what are goroutines in 2 sentences",
-		func(chunk string) error {
-			fmt.Print(chunk)
+		func(chunk snip.ChatResponse) error {
+			// Print the chunk text if present
+			if chunk.Text != "" {
+				fmt.Print(chunk.Text)
+			}
+			// Check if this is the final chunk with metadata
+			if chunk.FinishReason != "" {
+				fmt.Printf("\n[Streaming completed - FinishReason: %s]", chunk.FinishReason)
+			}
 			return nil
 		},
 	)
@@ -119,7 +126,7 @@ func main() {
 	log.Println("")
 	log.Println("")
 	log.Println("✅ Streaming request completed")
-	log.Printf("📊 Total response length: %d characters", len(fullResponse))
+	log.Printf("📊 Total response length: %d characters", len(fullResponse.Text))
 	log.Println("")
 
 	// Example 3: Multiple questions to test memory
@@ -135,6 +142,8 @@ func main() {
 	fmt.Println(response3)
 	log.Println("")
 	log.Println("✅ Follow-up question completed")
+
+	log.Println("📏 GetCurrentContextSize", remoteAgent.GetCurrentContextSize())
 
 	// info, err = remoteAgent.GetInfo()
 	// if err != nil {

@@ -91,8 +91,8 @@ func main() {
 
 	fullResponse, err := remoteAgent.AskStream(
 		"Who is Philippe Charrière?",
-		func(chunk string) error {
-			fmt.Print(chunk)
+		func(chunk snip.ChatResponse) error {
+			fmt.Print(chunk.Text)
 			return nil
 		},
 	)
@@ -102,7 +102,7 @@ func main() {
 	fmt.Println("")
 	log.Println("---")
 	log.Println("✅ Streaming request completed")
-	log.Printf("📊 Total response length: %d characters", len(fullResponse))
+	log.Printf("📊 Total response length: %d characters", len(fullResponse.Text))
 	log.Println("")
 
 		log.Println("===")

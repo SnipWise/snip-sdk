@@ -87,12 +87,12 @@ func main() {
     }
 
     // Ask a question
-    answer, err := agent.Ask("What is the capital of France?")
+    response, err := agent.Ask("What is the capital of France?")
     if err != nil {
         log.Fatal(err)
     }
 
-    fmt.Println("Answer:", answer)
+    fmt.Println("Answer:", response.Text)
 }
 ```
 
@@ -127,8 +127,8 @@ func main() {
     }
 
     // Stream the response
-    _, err = agent.AskStream("Tell me a short story", func(chunk string) error {
-        fmt.Print(chunk)  // Print each chunk as it arrives
+    _, err = agent.AskStream("Tell me a short story", func(chunk ChatResponse) error {
+        fmt.Print(chunk.Text)  // Print each chunk as it arrives
         return nil
     })
 
@@ -348,15 +348,15 @@ func main() {
     fmt.Printf("Connected to: %s (Model: %s)\n", info.Name, info.ModelID)
 
     // Ask a question
-    answer, err := remoteAgent.Ask("What is Go?")
+    response, err := remoteAgent.Ask("What is Go?")
     if err != nil {
         log.Fatal(err)
     }
-    fmt.Println("Answer:", answer)
+    fmt.Println("Answer:", response.Text)
 
     // Stream a response
-    _, err = remoteAgent.AskStream("Explain goroutines", func(chunk string) error {
-        fmt.Print(chunk)
+    _, err = remoteAgent.AskStream("Explain goroutines", func(chunk ChatResponse) error {
+        fmt.Print(chunk.Text)
         return nil
     })
     if err != nil {
@@ -562,16 +562,57 @@ remoteAgent := snip.NewRemoteAgent(
 )
 ```
 
+### ChatResponse
+
+The response structure returned by `Ask` and `AskStream` methods.
+
+```go
+type ChatResponse struct {
+    Text          string // The response text
+    FinishReason  string // Completion reason: stop, length, content_filter, unknown
+    FinishMessage string // Optional message about finish reason
+}
+```
+
+**Helper Methods:**
+
+```go
+func (chatResponse *ChatResponse) IsFinishReasonStop() bool
+func (chatResponse *ChatResponse) IsFinishReasonLength() bool
+func (chatResponse *ChatResponse) IsFinishReasonContentFilter() bool
+func (chatResponse *ChatResponse) IsFinishReasonUnknown() bool
+```
+
+**Example:**
+
+```go
+response, err := agent.Ask("What is Go?")
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Println(response.Text)
+
+// Check finish reason
+if response.IsFinishReasonStop() {
+    fmt.Println("Completed normally")
+} else if response.IsFinishReasonLength() {
+    fmt.Println("Hit token limit")
+}
+```
+
 ### AIAgent Interface
 
 Both `Agent` and `RemoteAgent` implement the `AIAgent` interface.
 
 ```go
 type AIAgent interface {
-    Ask(question string) (string, error)
-    AskStream(question string, callback func(string) error) (string, error)
+    Ask(question string) (ChatResponse, error)
+    AskStream(question string, callback func(ChatResponse) error) (ChatResponse, error)
     GetName() string
     GetMessages() []*ai.Message
+    GetCurrentContextSize() int
+    ReplaceMessagesWith(messages []*ai.Message) error
     GetInfo() (AgentInfo, error)
     Kind() AgentKind
     AddSystemMessage(context string) error
@@ -672,10 +713,19 @@ Send a message and get a complete response.
 
 ```go
 // Local agent
-answer, err := agent.Ask("What is 2+2?")
+response, err := agent.Ask("What is 2+2?")
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println(response.Text)
+
+// Check finish reason
+if response.IsFinishReasonStop() {
+    fmt.Println("Completed normally")
+}
 
 // Remote agent
-answer, err := remoteAgent.Ask("What is 2+2?")
+response, err := remoteAgent.Ask("What is 2+2?")
 ```
 
 ### AskStream
@@ -684,14 +734,26 @@ Stream the response chunk by chunk.
 
 ```go
 // Local agent
-fullAnswer, err := agent.AskStream("Explain AI", func(chunk string) error {
-    fmt.Print(chunk)
+finalResponse, err := agent.AskStream("Explain AI", func(chunk ChatResponse) error {
+    fmt.Print(chunk.Text)
     return nil
 })
+if err != nil {
+    log.Fatal(err)
+}
+
+// Check final response
+if finalResponse.IsFinishReasonStop() {
+    fmt.Println("\nCompleted normally")
+}
 
 // Remote agent
-fullAnswer, err := remoteAgent.AskStream("Explain AI", func(chunk string) error {
-    fmt.Print(chunk)
+finalResponse, err := remoteAgent.AskStream("Explain AI", func(chunk ChatResponse) error {
+    fmt.Print(chunk.Text)
+    // You can also check chunk.FinishReason during streaming
+    if chunk.FinishReason != "" {
+        fmt.Printf("\nFinish reason: %s\n", chunk.FinishReason)
+    }
     return nil
 })
 ```
@@ -707,6 +769,56 @@ err := agent.AddSystemMessage("The user prefers concise answers.")
 // Remote agent (sends HTTP request to the server)
 err := remoteAgent.AddSystemMessage("The user prefers concise answers.")
 ```
+
+### GetCurrentContextSize
+
+Get the total size of the conversation context in characters (includes system instructions and all message content).
+
+```go
+// Local agent (returns immediately from memory)
+size := agent.GetCurrentContextSize()
+fmt.Printf("Context has %d characters\n", size)
+
+// Remote agent (fetches from server via HTTP)
+size := remoteAgent.GetCurrentContextSize()
+fmt.Printf("Remote context has %d characters\n", size)
+```
+
+**Notes:**
+- Returns total character count (system instructions + all message content)
+- Returns 0 if no messages exist
+- For `RemoteAgent`, returns 0 on HTTP errors (doesn't include system instructions)
+- Very efficient for local agents
+
+### ReplaceMessagesWith
+
+Replace the entire conversation history with new messages.
+
+```go
+// Local agent - replace messages
+newMessages := []*ai.Message{
+    ai.NewSystemTextMessage("You are a helpful assistant"),
+    ai.NewUserTextMessage("Hello"),
+    ai.NewModelTextMessage("Hi! How can I help you?"),
+}
+err := agent.ReplaceMessagesWith(newMessages)
+if err != nil {
+    log.Fatal(err)
+}
+
+// Clear all messages
+err = agent.ReplaceMessagesWith([]*ai.Message{})
+
+// Remote agent - NOT SUPPORTED
+err := remoteAgent.ReplaceMessagesWith(newMessages)
+// Returns error: "ReplaceMessagesWith is not supported for remote agents"
+```
+
+**Notes:**
+- `ReplaceMessagesWith` is **NOT supported** for `RemoteAgent`
+- Remote agents manage history on the server side
+- Returns error if `messages` is `nil` (use empty slice to clear)
+- Use this to restore saved conversations or implement context pruning
 
 ### GetMessages
 
@@ -888,8 +1000,8 @@ func main() {
         fmt.Printf("\n🧑 Question: %s\n", question)
         fmt.Print("🤖 Answer: ")
 
-        _, err := agent.AskStream(question, func(chunk string) error {
-            fmt.Print(chunk)
+        _, err := agent.AskStream(question, func(chunk ChatResponse) error {
+            fmt.Print(chunk.Text)
             return nil
         })
 
@@ -904,6 +1016,38 @@ func main() {
     fmt.Printf("\n📚 Total messages in history: %d\n", len(messages))
 }
 ```
+
+## Context Management Best Practices
+
+### When to use GetCurrentContextSize()
+
+- **Before asking questions**: Check if context is getting too large
+- **For monitoring**: Track conversation size in logs/metrics
+- **Conditional logic**: Implement different behaviors based on context size
+
+```go
+size := agent.GetCurrentContextSize()
+if size > 5000 {
+    log.Printf("Warning: Large context (%d characters)", size)
+}
+```
+
+### When to use ReplaceMessagesWith()
+
+- **Context pruning**: Keep only recent messages when hitting limits
+- **Conversation restoration**: Load saved conversations from disk/database
+- **Reset conversations**: Start fresh while keeping the same agent
+- **Testing**: Set up specific conversation states for tests
+
+```go
+// Prune old messages when context is too large
+if agent.GetCurrentContextSize() > 10000 {
+    messages := agent.GetMessages()
+    agent.ReplaceMessagesWith(messages[len(messages)-20:]) // Keep last 20
+}
+```
+
+**Important:** `ReplaceMessagesWith()` is only available for local `Agent`, not `RemoteAgent`.
 
 ## Remote Agent Use Cases
 
@@ -939,8 +1083,9 @@ client1 := snip.NewRemoteAgent("Client 1", snip.ConfigHTTP{Address: "0.0.0.0:910
 client2 := snip.NewRemoteAgent("Client 2", snip.ConfigHTTP{Address: "0.0.0.0:9100"})
 
 // Both clients share the same conversation history on the server
-client1.Ask("My name is Alice")
-client2.Ask("What is my name?")  // Will know it's Alice
+response1, _ := client1.Ask("My name is Alice")
+response2, _ := client2.Ask("What is my name?")  // Will know it's Alice
+fmt.Println(response2.Text)
 ```
 
 ## RAG Agent Use Cases
@@ -1036,11 +1181,22 @@ for _, result := range results {
 ## Error Handling
 
 ```go
-answer, err := agent.Ask("Hello")
+response, err := agent.Ask("Hello")
 if err != nil {
     log.Printf("Error: %v", err)
     // Handle error appropriately
+    return
 }
+
+// Check completion status
+if !response.IsFinishReasonStop() {
+    log.Printf("Warning: Response did not complete normally. Reason: %s", response.FinishReason)
+    if response.FinishMessage != "" {
+        log.Printf("Message: %s", response.FinishMessage)
+    }
+}
+
+fmt.Println(response.Text)
 ```
 
 ## Installation

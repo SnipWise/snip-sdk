@@ -6,9 +6,13 @@ import (
 
 type AIAgent interface {
 	Ask(question string) (ChatResponse, error)
-	AskStream(question string, callback func(string) error) (string, error)
+	AskStream(question string, callback func(ChatResponse) error) (ChatResponse, error)
 	GetName() string
 	GetMessages() []*ai.Message
+	ReplaceMessagesWith(messages []*ai.Message) error
+
+	GetCurrentContextSize() int
+
 	GetInfo() (AgentInfo, error)
 	Kind() AgentKind
 	AddSystemMessage(context string) error

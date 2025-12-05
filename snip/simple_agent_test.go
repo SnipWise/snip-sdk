@@ -200,6 +200,226 @@ func TestAgentAddSystemMessage(t *testing.T) {
 }
 
 // ============================================================================
+// Tests for Agent.GetCurrentContextSize
+// ============================================================================
+
+func TestAgentGetCurrentContextSize(t *testing.T) {
+	t.Run("empty messages", func(t *testing.T) {
+		agent := &Agent{
+			Messages: []*ai.Message{},
+		}
+
+		size := agent.GetCurrentContextSize()
+		if size != 0 {
+			t.Errorf("GetCurrentContextSize() = %d, want 0", size)
+		}
+	})
+
+	t.Run("with messages", func(t *testing.T) {
+		agent := &Agent{
+			Messages: []*ai.Message{
+				ai.NewUserTextMessage("Hello"),
+				ai.NewModelTextMessage("Hi there"),
+				ai.NewUserTextMessage("How are you?"),
+			},
+		}
+
+		// Expected size = len("Hello") + len("Hi there") + len("How are you?")
+		// = 5 + 8 + 12 = 25
+		size := agent.GetCurrentContextSize()
+		expectedSize := 25
+		if size != expectedSize {
+			t.Errorf("GetCurrentContextSize() = %d, want %d", size, expectedSize)
+		}
+	})
+
+	t.Run("nil messages slice", func(t *testing.T) {
+		agent := &Agent{
+			Messages: nil,
+		}
+
+		size := agent.GetCurrentContextSize()
+		if size != 0 {
+			t.Errorf("GetCurrentContextSize() = %d, want 0", size)
+		}
+	})
+
+	t.Run("after adding messages", func(t *testing.T) {
+		agent := &Agent{
+			Messages: []*ai.Message{},
+		}
+
+		// Initial size should be 0
+		if agent.GetCurrentContextSize() != 0 {
+			t.Errorf("Initial GetCurrentContextSize() = %d, want 0", agent.GetCurrentContextSize())
+		}
+
+		// Add a message
+		agent.AddSystemMessage("System message")
+		// Expected size = len("System message") = 14
+		expectedSize := 14
+		if agent.GetCurrentContextSize() != expectedSize {
+			t.Errorf("After AddSystemMessage, GetCurrentContextSize() = %d, want %d", agent.GetCurrentContextSize(), expectedSize)
+		}
+
+		// Add more messages
+		agent.Messages = append(agent.Messages, ai.NewUserTextMessage("User message"))
+		agent.Messages = append(agent.Messages, ai.NewModelTextMessage("Model response"))
+
+		// Expected size = len("System message") + len("User message") + len("Model response")
+		// = 14 + 12 + 14 = 40
+		expectedSize = 40
+		if agent.GetCurrentContextSize() != expectedSize {
+			t.Errorf("After adding 3 messages, GetCurrentContextSize() = %d, want %d", agent.GetCurrentContextSize(), expectedSize)
+		}
+	})
+}
+
+// ============================================================================
+// Tests for Agent.ReplaceMessagesWith
+// ============================================================================
+
+func TestAgentReplaceMessages(t *testing.T) {
+	t.Run("replace empty messages with new messages", func(t *testing.T) {
+		agent := &Agent{
+			Messages: []*ai.Message{},
+		}
+
+		newMessages := []*ai.Message{
+			ai.NewUserTextMessage("Hello"),
+			ai.NewModelTextMessage("Hi there"),
+		}
+
+		err := agent.ReplaceMessagesWith(newMessages)
+		if err != nil {
+			t.Errorf("ReplaceMessagesWith() unexpected error: %v", err)
+		}
+
+		if len(agent.Messages) != 2 {
+			t.Fatalf("Expected 2 messages, got %d", len(agent.Messages))
+		}
+
+		if agent.Messages[0] != newMessages[0] {
+			t.Error("First message doesn't match")
+		}
+		if agent.Messages[1] != newMessages[1] {
+			t.Error("Second message doesn't match")
+		}
+	})
+
+	t.Run("replace existing messages", func(t *testing.T) {
+		oldMessages := []*ai.Message{
+			ai.NewUserTextMessage("Old message 1"),
+			ai.NewUserTextMessage("Old message 2"),
+			ai.NewUserTextMessage("Old message 3"),
+		}
+
+		agent := &Agent{
+			Messages: oldMessages,
+		}
+
+		newMessages := []*ai.Message{
+			ai.NewSystemTextMessage("System instruction"),
+			ai.NewUserTextMessage("New user message"),
+		}
+
+		err := agent.ReplaceMessagesWith(newMessages)
+		if err != nil {
+			t.Errorf("ReplaceMessagesWith() unexpected error: %v", err)
+		}
+
+		if len(agent.Messages) != 2 {
+			t.Fatalf("Expected 2 messages, got %d", len(agent.Messages))
+		}
+
+		if agent.Messages[0].Role != ai.RoleSystem {
+			t.Errorf("First message role = %v, want %v", agent.Messages[0].Role, ai.RoleSystem)
+		}
+
+		if agent.Messages[1].Role != ai.RoleUser {
+			t.Errorf("Second message role = %v, want %v", agent.Messages[1].Role, ai.RoleUser)
+		}
+
+		// Verify old messages are completely replaced
+		for _, oldMsg := range oldMessages {
+			found := false
+			for _, currentMsg := range agent.Messages {
+				if currentMsg == oldMsg {
+					found = true
+					break
+				}
+			}
+			if found {
+				t.Error("Old message still present after replacement")
+			}
+		}
+	})
+
+	t.Run("replace with empty slice", func(t *testing.T) {
+		agent := &Agent{
+			Messages: []*ai.Message{
+				ai.NewUserTextMessage("Message 1"),
+				ai.NewUserTextMessage("Message 2"),
+			},
+		}
+
+		newMessages := []*ai.Message{}
+
+		err := agent.ReplaceMessagesWith(newMessages)
+		if err != nil {
+			t.Errorf("ReplaceMessagesWith() unexpected error: %v", err)
+		}
+
+		if len(agent.Messages) != 0 {
+			t.Fatalf("Expected 0 messages, got %d", len(agent.Messages))
+		}
+	})
+
+	t.Run("nil messages returns error", func(t *testing.T) {
+		agent := &Agent{
+			Messages: []*ai.Message{
+				ai.NewUserTextMessage("Existing message"),
+			},
+		}
+
+		err := agent.ReplaceMessagesWith(nil)
+		if err == nil {
+			t.Error("ReplaceMessagesWith(nil) expected error, got nil")
+		}
+
+		expectedMsg := "messages cannot be nil"
+		if err.Error() != expectedMsg {
+			t.Errorf("ReplaceMessagesWith(nil) error = %q, want %q", err.Error(), expectedMsg)
+		}
+
+		// Verify existing messages are not modified when error occurs
+		if len(agent.Messages) != 1 {
+			t.Errorf("Messages were modified despite error, length = %d, want 1", len(agent.Messages))
+		}
+	})
+
+	t.Run("replace preserves message references", func(t *testing.T) {
+		agent := &Agent{
+			Messages: []*ai.Message{},
+		}
+
+		msg1 := ai.NewUserTextMessage("Message 1")
+		msg2 := ai.NewModelTextMessage("Message 2")
+		newMessages := []*ai.Message{msg1, msg2}
+
+		err := agent.ReplaceMessagesWith(newMessages)
+		if err != nil {
+			t.Errorf("ReplaceMessagesWith() unexpected error: %v", err)
+		}
+
+		// Verify the same slice is used (reference equality)
+		if &agent.Messages[0] != &newMessages[0] {
+			t.Error("Messages slice was copied instead of being assigned directly")
+		}
+	})
+}
+
+// ============================================================================
 // Tests for Agent.GetInfo
 // ============================================================================
 
@@ -304,7 +524,7 @@ func TestAgentAskStream(t *testing.T) {
 			chatStreamFlow: nil,
 		}
 
-		callback := func(chunk string) error {
+		callback := func(chunk ChatResponse) error {
 			return nil
 		}
 

@@ -46,15 +46,23 @@ func main() {
 		return
 	}
 
-	_, err = agent0.AskStream("What is the best pizza of the world?",
-		func(chunk string) error {
-			fmt.Print(chunk)
+	answer, err := agent0.AskStream("What is the best pizza of the world?",
+		func(chunk snip.ChatResponse) error {
+			fmt.Print(chunk.Text)
 			return nil
 		},
 	)
 	if err != nil {
 		fmt.Printf("Error asking question: %v\n", err)
 		return
+	}
+
+	fmt.Println("\n✋ FinishReason:", answer.FinishReason)
+	if answer.IsFinishReasonLength() {
+		fmt.Println("⚠️ The answer was cut off due to length limits.")
+	}
+	if answer.IsFinishReasonStop() {
+		fmt.Println("✅ The answer was completed successfully.")
 	}
 
 	fmt.Println("\n--- Adding knowledge base context ---")
@@ -71,12 +79,20 @@ func main() {
 
 	fmt.Printf("Messages after adding context: %d\n", len(agent0.GetMessages()))
 
-	answer, err := agent0.AskStream("Who invented Hawaiian pizza?",
-		func(chunk string) error {
-			fmt.Print(chunk)
+	answer, err = agent0.AskStream("Who invented Hawaiian pizza?",
+		func(chunk snip.ChatResponse) error {
+			fmt.Print(chunk.Text)
 			return nil
 		},
 	)
+	fmt.Println("\n✋ FinishReason:", answer.FinishReason)
+	if answer.IsFinishReasonLength() {
+		fmt.Println("⚠️ The answer was cut off due to length limits.")
+	}
+	if answer.IsFinishReasonStop() {
+		fmt.Println("✅ The answer was completed successfully.")
+	}
+
 	if err != nil {
 		fmt.Printf("\n❌ Error asking question: %v\n", err)
 		fmt.Printf("Partial answer received: %q\n", answer)
@@ -86,11 +102,19 @@ func main() {
 	fmt.Println("\n--- Add again knowledge base context ---")
 
 	answer, err = agent0.AskStream("What is Hawaiian pizza?",
-		func(chunk string) error {
-			fmt.Print(chunk)
+		func(chunk snip.ChatResponse) error {
+			fmt.Print(chunk.Text)
 			return nil
 		},
 	)
+	fmt.Println("\n✋ FinishReason:", answer.FinishReason)
+	if answer.IsFinishReasonLength() {
+		fmt.Println("⚠️ The answer was cut off due to length limits.")
+	}
+	if answer.IsFinishReasonStop() {
+		fmt.Println("✅ The answer was completed successfully.")
+	}
+	
 	if err != nil {
 		fmt.Printf("\n❌ Error asking question: %v\n", err)
 		fmt.Printf("Partial answer received: %q\n", answer)
