@@ -42,8 +42,13 @@ func initializeChatFlow(agent *Agent) {
 			// DEBUG: print conversation history
 			displayConversationHistory(agent)
 
-			return &ChatResponse{Response: resp.Text()}, nil
+			return &ChatResponse{
+				Text: resp.Text(),
+				FinishReason: string(resp.FinishReason),
+				FinishMessage: resp.FinishMessage,
+			}, nil
 		})
+		
 	agent.chatFlow = chatFlow
 
 }

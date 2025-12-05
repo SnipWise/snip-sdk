@@ -5,7 +5,7 @@ import (
 )
 
 type AIAgent interface {
-	Ask(question string) (string, error)
+	Ask(question string) (ChatResponse, error)
 	AskStream(question string, callback func(string) error) (string, error)
 	GetName() string
 	GetMessages() []*ai.Message

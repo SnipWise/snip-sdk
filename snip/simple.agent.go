@@ -91,7 +91,6 @@ func (agent *Agent) GetInfo() (AgentInfo, error) {
 // 	return nil
 // }
 
-
 func NewAgent(ctx context.Context, agentConfig AgentConfig, modelConfig ModelConfig, opts ...AgentOption) (*Agent, error) {
 	oaiPlugin := &oai.OpenAI{
 		APIKey: "I💙DockerModelRunner",
@@ -113,7 +112,6 @@ func NewAgent(ctx context.Context, agentConfig AgentConfig, modelConfig ModelCon
 	// 	return nil, err
 	// }
 
-
 	agent := &Agent{
 		Name:               agentConfig.Name,
 		SystemInstructions: agentConfig.SystemInstructions,
@@ -134,17 +132,17 @@ func NewAgent(ctx context.Context, agentConfig AgentConfig, modelConfig ModelCon
 
 }
 
-func (agent *Agent) Ask(question string) (string, error) {
+func (agent *Agent) Ask(question string) (ChatResponse, error) {
 	if agent.chatFlow == nil {
-		return "", fmt.Errorf("chat flow is not initialized")
+		return ChatResponse{}, fmt.Errorf("chat flow is not initialized")
 	}
 	resp, err := agent.chatFlow.Run(agent.ctx, &ChatRequest{
 		UserMessage: question,
 	})
 	if err != nil {
-		return "", err
+		return ChatResponse{}, err
 	}
-	return resp.Response, nil
+	return *resp, nil
 
 }
 
@@ -161,7 +159,8 @@ func (agent *Agent) AskStream(question string, callback func(string) error) (str
 	for result, err := range streamCh {
 		// Check for errors from the stream
 		if err != nil {
-			return "", fmt.Errorf("streaming error: %w", err)
+			// Return both the partial answer and the error
+			return finalAnswer, fmt.Errorf("streaming error: %w", err)
 		}
 
 		// Check for nil result (defensive programming)
@@ -173,7 +172,7 @@ func (agent *Agent) AskStream(question string, callback func(string) error) (str
 			finalAnswer += result.Stream
 			err := callback(result.Stream)
 			if err != nil {
-				return "", err
+				return finalAnswer, err
 			}
 		}
 	}

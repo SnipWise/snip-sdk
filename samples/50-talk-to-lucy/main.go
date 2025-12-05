@@ -59,21 +59,42 @@ func main() {
 
 	fmt.Println("\n--- Adding knowledge base context ---")
 
+	// Log context size before adding
+	fmt.Printf("Knowledge base size: %d characters\n", len(knowledgeBase))
+	fmt.Printf("Current messages in history: %d\n", len(agent0.GetMessages()))
+
 	err = agent0.AddSystemMessage(knowledgeBase)
 	if err != nil {
 		fmt.Printf("Error adding system message: %v\n", err)
 		return
 	}
-	_, err = agent0.AskStream("Who invented Hawaiian pizza?",
+
+	fmt.Printf("Messages after adding context: %d\n", len(agent0.GetMessages()))
+
+	answer, err := agent0.AskStream("Who invented Hawaiian pizza?",
 		func(chunk string) error {
 			fmt.Print(chunk)
 			return nil
 		},
 	)
 	if err != nil {
-		fmt.Printf("Error asking question: %v\n", err)
+		fmt.Printf("\n❌ Error asking question: %v\n", err)
+		fmt.Printf("Partial answer received: %q\n", answer)
 		return
 	}
 	fmt.Println()
+	fmt.Println("\n--- Add again knowledge base context ---")
+
+	answer, err = agent0.AskStream("What is Hawaiian pizza?",
+		func(chunk string) error {
+			fmt.Print(chunk)
+			return nil
+		},
+	)
+	if err != nil {
+		fmt.Printf("\n❌ Error asking question: %v\n", err)
+		fmt.Printf("Partial answer received: %q\n", answer)
+		return
+	}
 
 }

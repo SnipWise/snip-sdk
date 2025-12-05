@@ -38,5 +38,8 @@ func main() {
 		return
 	}
 	fmt.Printf("Response from Local %s Agent: %s\n", agent0.Kind(), response)
+	fmt.Println("Text", response.Text)
+	fmt.Println("FinishReason", response.FinishReason)
+	fmt.Println("FinishMessage", response.FinishMessage)
 
 }

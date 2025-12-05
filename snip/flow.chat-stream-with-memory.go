@@ -2,6 +2,8 @@ package snip
 
 import (
 	"context"
+	"fmt"
+	"log"
 	"strings"
 
 	"github.com/firebase/genkit/go/ai"
@@ -26,6 +28,19 @@ func initializeChatStreamFlow(agent *Agent) {
 			agent.streamCtx = streamCtx
 			agent.streamCancel = streamCancel
 
+			// === DEBUG: CONTEXT SIZE ===
+			// Log total context size for debugging
+			totalContextSize := len(agent.SystemInstructions) + len(input.UserMessage)
+			for _, msg := range agent.Messages {
+				for _, content := range msg.Content {
+					totalContextSize += len(content.Text)
+				}
+			}
+			log.Printf("[%s] Total context size: %d characters, %d messages in history",
+				agent.Name, totalContextSize, len(agent.Messages))
+
+			// === End of DEBUG: CONTEXT SIZE ===
+
 			// === COMPLETION ===
 			resp, err := genkit.Generate(streamCtx, agent.genKitInstance,
 				ai.WithModelName("openai/"+agent.ModelID),
@@ -49,7 +64,13 @@ func initializeChatStreamFlow(agent *Agent) {
 				// Clean up the stream context
 				agent.streamCancel = nil
 				agent.streamCtx = nil
-				return nil, err
+
+				// Log detailed error information
+				log.Printf("[%s] ❌ Generation error: %v", agent.Name, err)
+				log.Printf("[%s] Context details - Total size: %d chars, Messages: %d",
+					agent.Name, totalContextSize, len(agent.Messages))
+
+				return nil, fmt.Errorf("generation failed (context size: %d chars): %w", totalContextSize, err)
 			}
 			// === CONVERSATIONAL MEMORY ===
 
@@ -65,7 +86,11 @@ func initializeChatStreamFlow(agent *Agent) {
 			agent.streamCancel = nil
 			agent.streamCtx = nil
 
-			return &ChatResponse{Response: resp.Text()}, nil
+			return &ChatResponse{
+				Text: resp.Text(),
+				FinishReason: string(resp.FinishReason),
+				FinishMessage: resp.FinishMessage,
+			}, nil
 		})
 	agent.chatStreamFlow = chatStreamFlow
 }
