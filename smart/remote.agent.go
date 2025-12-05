@@ -105,6 +105,7 @@ func (agent *RemoteAgent) AddSystemMessage(context string) error {
 	return nil
 }
 
+
 func (agent *RemoteAgent) GetInfo() (AgentInfo, error) {
 	// Create HTTP GET request to information endpoint
 	req, err := http.NewRequest("GET", agent.InformationEndpoint, nil)

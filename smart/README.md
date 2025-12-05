@@ -9,6 +9,46 @@ This package offers a simple way to create AI agents that can:
 - Stream responses in real-time
 - Be exposed as HTTP services
 - Work with OpenAI-compatible APIs (OpenAI, Ollama, etc.)
+- Perform semantic search with RAG (Retrieval-Augmented Generation)
+- Verify model availability before agent creation
+
+## Important Changes
+
+### Breaking Changes in Recent Updates
+
+**NewAgent now returns an error:**
+
+The `NewAgent` function signature has changed to include error handling and automatic model availability verification:
+
+```go
+// Old (deprecated)
+agent := smart.NewAgent(ctx, agentConfig, modelConfig, opts...)
+
+// New (current)
+agent, err := smart.NewAgent(ctx, agentConfig, modelConfig, opts...)
+if err != nil {
+    log.Fatal(err)  // Handle model unavailability or other errors
+}
+```
+
+**What this means:**
+- The agent creation now verifies that the specified model is available at the engine URL
+- If the model is not available, an error is returned immediately
+- This prevents runtime errors and provides clearer feedback during initialization
+
+**Migration:**
+Update all `NewAgent` calls to handle the returned error:
+
+```go
+// Before
+agent := smart.NewAgent(ctx, agentConfig, modelConfig, smart.EnableChatFlowWithMemory())
+
+// After
+agent, err := smart.NewAgent(ctx, agentConfig, modelConfig, smart.EnableChatFlowWithMemory())
+if err != nil {
+    log.Fatalf("Failed to create agent: %v", err)
+}
+```
 
 ## Quick Start
 
@@ -28,7 +68,7 @@ func main() {
     ctx := context.Background()
 
     // Create a simple agent
-    agent := smart.NewAgent(
+    agent, err := smart.NewAgent(
         ctx,
         smart.AgentConfig{
             Name:               "my-assistant",
@@ -42,6 +82,9 @@ func main() {
         },
         smart.EnableChatFlowWithMemory(),                      // Enable basic chat with memory
     )
+    if err != nil {
+        log.Fatal(err)
+    }
 
     // Ask a question
     answer, err := agent.Ask("What is the capital of France?")
@@ -68,7 +111,7 @@ import (
 func main() {
     ctx := context.Background()
 
-    agent := smart.NewAgent(
+    agent, err := smart.NewAgent(
         ctx,
         smart.AgentConfig{
             Name:               "streaming-assistant",
@@ -79,9 +122,12 @@ func main() {
         smart.ModelConfig{Temperature: 0.7},
         smart.EnableChatStreamFlowWithMemory(),  // Enable streaming with memory
     )
+    if err != nil {
+        log.Fatal(err)
+    }
 
     // Stream the response
-    _, err := agent.AskStream("Tell me a short story", func(chunk string) error {
+    _, err = agent.AskStream("Tell me a short story", func(chunk string) error {
         fmt.Print(chunk)  // Print each chunk as it arrives
         return nil
     })
@@ -106,7 +152,7 @@ import (
 func main() {
     ctx := context.Background()
 
-    agent := smart.NewAgent(
+    agent, err := smart.NewAgent(
         ctx,
         smart.AgentConfig{
             Name:               "http-agent",
@@ -127,6 +173,9 @@ func main() {
             ShutdownPath:       "/server/shutdown",
         }),
     )
+    if err != nil {
+        log.Fatal(err)
+    }
 
     // Start the server (blocks until shutdown)
     if err := agent.Serve(); err != nil {
@@ -159,6 +208,71 @@ curl http://localhost:8080/healthcheck
 curl -X POST http://localhost:8080/server/shutdown
 ```
 
+### RAG Agent (Semantic Search)
+
+Create an agent for Retrieval-Augmented Generation (RAG) with semantic search capabilities.
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+    "github.com/snipwise/snip-sdk/smart"
+)
+
+func main() {
+    ctx := context.Background()
+
+    // Create a RAG agent with embedding model
+    ragAgent, err := smart.NewRagAgent(
+        ctx,
+        smart.RagAgentConfig{
+            Name:      "rag-assistant",
+            ModelID:   "ai/mxbai-embed-large",
+            EngineURL: "http://localhost:12434/engines/llama.cpp/v1",
+        },
+        smart.StoreConfig{
+            StoreName: "my-documents",
+            StorePath: "./data",
+        },
+    )
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // Add documents to the store
+    chunks := []smart.TextChunk{
+        {
+            Content:  "Squirrels run in the forest",
+            Metadata: map[string]any{"source": "nature.txt"},
+        },
+        {
+            Content:  "Dolphins leap out of the ocean",
+            Metadata: map[string]any{"source": "marine.txt"},
+        },
+    }
+
+    count, err := ragAgent.AddTextChunksToStore(chunks)
+    if err != nil {
+        log.Fatal(err)
+    }
+    fmt.Printf("Indexed %d documents\n", count)
+
+    // Search for similar documents
+    similarities, err := ragAgent.SearchSimilarities("Which animals swim?")
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    fmt.Println("Similar documents:")
+    for _, doc := range similarities {
+        fmt.Println("  -", doc)
+    }
+}
+```
+
 ### Remote Agent (Client)
 
 Connect to a remote agent server and interact with it programmatically.
@@ -180,7 +294,7 @@ func main() {
     chatModelId := "hf.co/menlo/jan-nano-gguf:q4_k_m"
 
     // Create a local agent with HTTP server
-    agent := smart.NewAgent(
+    agent, err := smart.NewAgent(
         ctx,
         smart.AgentConfig{
             Name:               "Server Agent",
@@ -201,6 +315,9 @@ func main() {
             InformationPath:    "/api/information",
         }),
     )
+    if err != nil {
+        log.Fatal(err)
+    }
 
     // Start server in background
     go func() {
@@ -258,6 +375,45 @@ func main() {
 }
 ```
 
+## Model Availability
+
+The package includes helper functions to check model availability before creating agents.
+
+### GetModelsList
+
+Retrieve a list of available models from the inference engine.
+
+```go
+ctx := context.Background()
+models, err := smart.GetModelsList(ctx, "http://localhost:12434/engines/llama.cpp/v1")
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Println("Available models:")
+for _, model := range models {
+    fmt.Println("  -", model)
+}
+```
+
+### IsModelAvailable
+
+Check if a specific model is available.
+
+```go
+ctx := context.Background()
+engineURL := "http://localhost:12434/engines/llama.cpp/v1"
+modelID := "hf.co/menlo/jan-nano-gguf:q4_k_m"
+
+if smart.IsModelAvailable(ctx, engineURL, modelID) {
+    fmt.Printf("Model %s is available\n", modelID)
+} else {
+    fmt.Printf("Model %s is not available\n", modelID)
+}
+```
+
+**Note:** `NewAgent` automatically verifies model availability when creating an agent. If the model is not available, it returns an error.
+
 ## Core Types
 
 ### Agent
@@ -300,6 +456,74 @@ type ModelConfig struct {
     PresencePenalty  float64   // Encourage new topics (-2.0 to 2.0)
     Stop             []string  // Stop sequences
     Seed             *int64    // For deterministic sampling
+}
+```
+
+### RagAgent
+
+Agent for Retrieval-Augmented Generation with semantic search.
+
+```go
+type RagAgent struct {
+    ctx    context.Context
+    Name   string
+    ModelID string
+
+    storeName string
+    storePath string
+
+    genKitInstance    *genkit.Genkit
+    embedder          ai.Embedder
+    docStore          *localvec.DocStore
+    documentRetriever ai.Retriever
+
+    embeddingDimension int
+}
+```
+
+**Configuration Types:**
+
+```go
+type RagAgentConfig struct {
+    Name      string  // Agent identifier
+    ModelID   string  // Embedding model to use
+    EngineURL string  // Model inference engine base URL
+}
+
+type StoreConfig struct {
+    StoreName string  // Name of the document store
+    StorePath string  // Path to store documents
+}
+
+type TextChunk struct {
+    Content  string         // Text content
+    Metadata map[string]any // Optional metadata
+}
+```
+
+**Constructor:**
+
+```go
+func NewRagAgent(ctx context.Context, ragAgentConfig RagAgentConfig, storeConfig StoreConfig, opts ...RagAgentOption) (*RagAgent, error)
+```
+
+**Example:**
+
+```go
+ragAgent, err := smart.NewRagAgent(
+    ctx,
+    smart.RagAgentConfig{
+        Name:      "my-rag-agent",
+        ModelID:   "ai/mxbai-embed-large",
+        EngineURL: "http://localhost:12434/engines/llama.cpp/v1",
+    },
+    smart.StoreConfig{
+        StoreName: "documents",
+        StorePath: "./data",
+    },
+)
+if err != nil {
+    log.Fatal(err)
 }
 ```
 
@@ -352,6 +576,36 @@ type AIAgent interface {
     Kind() AgentKind
     AddSystemMessage(context string) error
 }
+```
+
+### AIRagAgent Interface
+
+`RagAgent` implements the `AIRagAgent` interface for semantic search operations.
+
+```go
+type AIRagAgent interface {
+    GetName() string
+    GetInfo() (RagAgentInfo, error)
+    Kind() AgentKind
+    AddTextChunksToStore(chunks []TextChunk) (int, error)
+    SearchSimilarities(query string) ([]string, error)
+}
+```
+
+### AgentKind
+
+Agent types are identified by the `AgentKind` constant.
+
+```go
+type AgentKind string
+
+const (
+    Basic  AgentKind = "Basic"
+    Remote AgentKind = "Remote"
+    Tool   AgentKind = "Tool"    // Reserved for future use
+    Intent AgentKind = "Intent"  // Reserved for future use
+    Rag    AgentKind = "Rag"
+)
 ```
 
 ## Agent Options
@@ -407,6 +661,8 @@ smart.EnableServer(smart.ConfigHTTP{
 - Currently, all "Chat Flow" implementations store conversation history in memory (RAM). Persistence to database or other storage is not yet implemented.
 
 ## Agent Methods
+
+### Standard Agent Methods
 
 These methods are available for both `Agent` and `RemoteAgent` (they implement the `AIAgent` interface).
 
@@ -486,6 +742,86 @@ fmt.Printf("Agent: %s, Model: %s\n", info.Name, info.ModelID)
 fmt.Printf("Temperature: %.2f, TopP: %.2f\n", info.Config.Temperature, info.Config.TopP)
 ```
 
+### RAG Agent Methods
+
+These methods are specific to `RagAgent` for semantic search operations.
+
+#### AddTextChunksToStore
+
+Add text chunks (documents) to the RAG store for indexing.
+
+```go
+chunks := []smart.TextChunk{
+    {
+        Content:  "Paris is the capital of France",
+        Metadata: map[string]any{"source": "geography.txt", "category": "cities"},
+    },
+    {
+        Content:  "Go is a programming language created by Google",
+        Metadata: map[string]any{"source": "tech.txt", "category": "programming"},
+    },
+}
+
+count, err := ragAgent.AddTextChunksToStore(chunks)
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Printf("Indexed %d documents\n", count)
+```
+
+#### SearchSimilarities
+
+Search for documents similar to a query using semantic search.
+
+```go
+similarities, err := ragAgent.SearchSimilarities("What is the capital of France?")
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Println("Similar documents:")
+for _, doc := range similarities {
+    fmt.Println("  -", doc)
+}
+```
+
+#### GetInfo (RAG Agent)
+
+Get information about the RAG agent, including store details.
+
+```go
+info, err := ragAgent.GetInfo()
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Printf("Agent: %s\n", info.Name)
+fmt.Printf("Model: %s\n", info.ModelID)
+fmt.Printf("Embedding Dimension: %d\n", info.EmbeddingDimension)
+fmt.Printf("Store: %s at %s\n", info.StoreName, info.StorePath)
+fmt.Printf("Documents: %d\n", info.NumberOfDocuments)
+```
+
+#### GetNumberOfDocuments
+
+Get the count of documents in the store.
+
+```go
+count := ragAgent.GetNumberOfDocuments()
+fmt.Printf("Store contains %d documents\n", count)
+```
+
+#### IsStoreInitialized
+
+Check if the document store is initialized.
+
+```go
+if ragAgent.IsStoreInitialized() {
+    fmt.Println("Store is ready")
+} else {
+    fmt.Println("Store not initialized")
+}
+```
+
 ## HTTP Server Endpoints
 
 When `EnableServer()` is used, the following endpoints are available (with default paths):
@@ -519,7 +855,7 @@ func main() {
     ctx := context.Background()
 
     // Create an agent with custom configuration
-    agent := smart.NewAgent(
+    agent, err := smart.NewAgent(
         ctx,
         smart.AgentConfig{
             Name:               "tutor-bot",
@@ -535,6 +871,9 @@ func main() {
         smart.EnableChatFlowWithMemory(),
         smart.EnableChatStreamFlowWithMemory(),
     )
+    if err != nil {
+        log.Fatal(err)
+    }
 
     // Add context
     agent.AddSystemMessage("The student is learning Go programming.")
@@ -586,10 +925,13 @@ The `RemoteAgent` is useful for:
 
 ```go
 // Start one server
-agent := smart.NewAgent(ctx, agentConfig, modelConfig,
+agent, err := smart.NewAgent(ctx, agentConfig, modelConfig,
     smart.EnableChatFlowWithMemory(),
     smart.EnableServer(smart.ConfigHTTP{Address: "0.0.0.0:9100"}),
 )
+if err != nil {
+    log.Fatal(err)
+}
 go agent.Serve()
 
 // Connect multiple clients
@@ -600,6 +942,84 @@ client2 := smart.NewRemoteAgent("Client 2", smart.ConfigHTTP{Address: "0.0.0.0:9
 client1.Ask("My name is Alice")
 client2.Ask("What is my name?")  // Will know it's Alice
 ```
+
+## RAG Agent Use Cases
+
+The `RagAgent` is useful for:
+
+1. **Document Search**: Build semantic search engines for your documents
+2. **Knowledge Bases**: Create question-answering systems over your own data
+3. **Context Retrieval**: Find relevant information to augment LLM prompts
+4. **Similarity Detection**: Identify similar content across documents
+5. **Content Recommendation**: Suggest related content based on semantic similarity
+
+**Key Features:**
+- Automatic embedding generation using specified model
+- Persistent document storage (localvec)
+- Metadata support for document organization
+- Semantic search (not just keyword matching)
+- Configurable storage path and name
+
+**Common Embedding Models:**
+- `ai/mxbai-embed-large` - Good general-purpose embedding model
+- `ai/granite-embedding-multilingual` - Multilingual support
+- `ai/embeddinggemma` - Google's Gemma embedding model
+
+**Example: Building a Knowledge Base**
+
+```go
+// Create RAG agent with your preferred embedding model
+ragAgent, err := smart.NewRagAgent(
+    ctx,
+    smart.RagAgentConfig{
+        Name:      "knowledge-base",
+        ModelID:   "ai/mxbai-embed-large",
+        EngineURL: "http://localhost:12434/engines/llama.cpp/v1",
+    },
+    smart.StoreConfig{
+        StoreName: "company-docs",
+        StorePath: "./knowledge-base",
+    },
+)
+if err != nil {
+    log.Fatal(err)
+}
+
+// Index your documents with metadata
+docs := []smart.TextChunk{
+    {
+        Content:  "Our customer support is available 24/7 via email and chat",
+        Metadata: map[string]any{"category": "support", "doc_id": "cs-001"},
+    },
+    {
+        Content:  "Standard shipping takes 5-7 business days",
+        Metadata: map[string]any{"category": "shipping", "doc_id": "ship-001"},
+    },
+}
+
+_, err = ragAgent.AddTextChunksToStore(docs)
+if err != nil {
+    log.Fatal(err)
+}
+
+// Search for relevant information
+results, err := ragAgent.SearchSimilarities("How can I contact support?")
+if err != nil {
+    log.Fatal(err)
+}
+
+// Use results to augment your LLM prompt
+for _, result := range results {
+    fmt.Println("Relevant info:", result)
+}
+```
+
+**Best Practices:**
+- Choose an embedding model that matches your content language and domain
+- Include meaningful metadata to help organize and filter results
+- Use consistent chunking strategies for better search results
+- Store documents persistently by using a dedicated storage path
+- Check `GetNumberOfDocuments()` to avoid re-indexing existing documents
 
 ## Configuration Tips
 
@@ -629,11 +1049,34 @@ if err != nil {
 go get github.com/snipwise/snip-sdk/smart
 ```
 
+## Helper Functions
+
+The package provides utility functions for working with models:
+
+### GetModelsList
+
+```go
+func GetModelsList(ctx context.Context, modelRunnerEndpoint string) ([]string, error)
+```
+
+Retrieves a list of all available models from the inference engine.
+
+### IsModelAvailable
+
+```go
+func IsModelAvailable(ctx context.Context, modelRunnerEndpoint, modelID string) bool
+```
+
+Checks if a specific model is available at the inference engine endpoint.
+
+**Note:** This function is automatically called by `NewAgent` and `NewRagAgent` during initialization.
+
 ## Dependencies
 
 This package uses:
-- [Firebase Genkit](https://github.com/firebase/genkit) - AI framework
-- [OpenAI Go SDK](https://github.com/openai/openai-go) - OpenAI API client
+- [Firebase Genkit](https://github.com/firebase/genkit) - AI framework and orchestration
+- [OpenAI Go SDK](https://github.com/openai/openai-go) - OpenAI API client for model interaction
+- [localvec](https://github.com/firebase/genkit/go/plugins/localvec) - Local vector store for RAG operations
 
 ## License
 

@@ -76,7 +76,23 @@ func (agent *Agent) GetInfo() (AgentInfo, error) {
 	}, nil
 }
 
-func NewAgent(ctx context.Context, agentConfig AgentConfig, modelConfig ModelConfig, opts ...AgentOption) *Agent {
+// ping checks if the model is available by sending a simple prompt
+// func ping(ctx context.Context, genKitInstance *genkit.Genkit, modelID string) error {
+// 	log.Println("⏳ model availability check in progress...")
+// 	_, err := genkit.Generate(
+// 		ctx,
+// 		genKitInstance,
+// 		ai.WithModelName("openai/"+modelID),
+// 		ai.WithPrompt(""),
+// 	)
+// 	if err != nil {
+// 		return fmt.Errorf("model not available: %w", err)
+// 	}
+// 	return nil
+// }
+
+
+func NewAgent(ctx context.Context, agentConfig AgentConfig, modelConfig ModelConfig, opts ...AgentOption) (*Agent, error) {
 	oaiPlugin := &oai.OpenAI{
 		APIKey: "I💙DockerModelRunner",
 		Opts: []option.RequestOption{
@@ -85,6 +101,18 @@ func NewAgent(ctx context.Context, agentConfig AgentConfig, modelConfig ModelCon
 	}
 
 	genKitInstance := genkit.Init(ctx, genkit.WithPlugins(oaiPlugin))
+
+	// Check if model is available
+	if !IsModelAvailable(ctx, agentConfig.EngineURL, agentConfig.ModelID) {
+		return nil, fmt.Errorf("model %s is not available at %s", agentConfig.ModelID, agentConfig.EngineURL)
+	} else {
+		log.Printf("✅ Model %s is available at %s", agentConfig.ModelID, agentConfig.EngineURL)
+	}
+	// err := ping(ctx, genKitInstance, agentConfig.ModelID)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
 
 	agent := &Agent{
 		Name:               agentConfig.Name,
@@ -102,7 +130,7 @@ func NewAgent(ctx context.Context, agentConfig AgentConfig, modelConfig ModelCon
 		opt(agent)
 	}
 
-	return agent
+	return agent, nil
 
 }
 
