@@ -12,6 +12,10 @@ type ChatResponse struct {
 	FinishMessage string `json:"finish_message,omitempty"`
 }
 
+func (chatResponse *ChatResponse) IsEmpty() bool {
+	return chatResponse.Text == ""
+}
+
 func (chatResponse *ChatResponse) IsFinishReasonStop() bool {
 	return chatResponse.FinishReason == "stop"
 }

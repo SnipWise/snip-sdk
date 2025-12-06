@@ -73,6 +73,8 @@ func main() {
 		return
 	}
 
+	// run a go routine to dispaly a waiting animation
+
 	// Add the knowledge base as a system message
 	err = agent0.AddSystemMessage(knowledgeBase)
 	if err != nil {
@@ -80,10 +82,12 @@ func main() {
 		return
 	}
 
+
 	// First question
 	fmt.Println("=== First Question ===")
 	answer, err := agent0.AskStreamWithMemory("What is the best pizza of the world?",
 		func(chunk snip.ChatResponse) error {
+			// si text pas vide et anim pas stop -> stop anim
 			fmt.Print(chunk.Text)
 			return nil
 		},
