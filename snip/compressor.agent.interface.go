@@ -1,17 +1,19 @@
 package snip
 
+import "github.com/snipwise/snip-sdk/snip/agents"
+
 import "github.com/firebase/genkit/go/ai"
 
-// CompressorAgentInterface defines the contract for compression agents
+// AICompressorAgent defines the contract for compression agents
 type AICompressorAgent interface {
 	// GetName returns the name of the agent
 	GetName() string
 
 	// GetKind returns the kind/type of the agent
-	GetKind() AgentKind
+	GetKind() agents.AgentKind
 
 	// GetInfo returns information about the agent
-	GetInfo() (AgentInfo, error)
+	GetInfo() (agents.AgentInfo, error)
 
 	// GetCompressionPrompt returns the current compression prompt
 	GetCompressionPrompt() string
@@ -20,14 +22,14 @@ type AICompressorAgent interface {
 	SetCompressionPrompt(prompt string)
 
 	// CompressText compresses the given text using the compression prompt
-	CompressText(text string) (ChatResponse, error)
+	CompressText(text string) (agents.ChatResponse, error)
 
 	// CompressTextStream compresses the given text using streaming
-	CompressTextStream(text string, callback func(ChatResponse) error) (ChatResponse, error)
+	CompressTextStream(text string, callback func(agents.ChatResponse) error) (agents.ChatResponse, error)
 
 	// CompressMessages compresses a list of messages into a summary
-	CompressMessages(messages []*ai.Message) (ChatResponse, error)
+	CompressMessages(messages []*ai.Message) (agents.ChatResponse, error)
 
 	// CompressMessagesStream compresses a list of messages into a summary using streaming
-	CompressMessagesStream(messages []*ai.Message, callback func(ChatResponse) error) (ChatResponse, error)
+	CompressMessagesStream(messages []*ai.Message, callback func(agents.ChatResponse) error) (agents.ChatResponse, error)
 }

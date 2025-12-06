@@ -3,9 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
+	"strings"
 
-	"github.com/snipwise/snip-sdk/env"
-	"github.com/snipwise/snip-sdk/snip"
+	"github.com/snipwise/snip-sdk/snip/agents"
+	"github.com/snipwise/snip-sdk/snip/chat"
+	"github.com/snipwise/snip-sdk/snip/models"
+	"github.com/snipwise/snip-sdk/snip/toolbox/env"
+	"github.com/snipwise/snip-sdk/snip/ui/spinner"
 )
 
 func main() {
@@ -14,32 +18,60 @@ func main() {
 	engineURL := env.GetEnvOrDefault("MODEL_RUNNER_BASE_URL", "http://localhost:12434/engines/llama.cpp/v1")
 	chatModelId := env.GetEnvOrDefault("CHAT_MODEL", "hf.co/menlo/jan-nano-gguf:q4_k_m")
 
-	agent0, err := snip.NewAgent(ctx,
-		snip.AgentConfig{
-			Name:               "Local Agent",
-			SystemInstructions: "You are a helpful assistant.",
+	generatingSpinner := spinner.New("").SetSuffix("generating...").SetFrames(spinner.FramesPulsingStar)
+
+	agent0, err := chat.NewChatAgent(ctx,
+		agents.AgentConfig{
+			Name:               "Riker",
+			SystemInstructions: "You are a Star Trek expert assistant.",
 			ModelID:            chatModelId,
 			EngineURL:          engineURL,
 		},
-		snip.ModelConfig{
+		models.ModelConfig{
 			Temperature: 0.5,
 			TopP:        0.9,
 		},
-		snip.EnableChatFlowWithMemory(),
+		chat.EnableChatFlowWithMemory(),
 	)
 	if err != nil {
 		fmt.Printf("Error creating agent: %v\n", err)
 		return
 	}
 
-	response, err := agent0.AskWithMemory("What is the capital of France?")
+	generatingSpinner.Start()
+
+	response, err := agent0.AskWithMemory("What is the name of the ship of Jean-Luc Picard?")
 	if err != nil {
 		fmt.Printf("Error asking question: %v\n", err)
+		generatingSpinner.Error("Failed!")
 		return
 	}
-	fmt.Printf("Response from Local %s Agent: %s\n", agent0.Kind(), response)
-	fmt.Println("Text", response.Text)
-	fmt.Println("FinishReason", response.FinishReason)
-	fmt.Println("FinishMessage", response.FinishMessage)
+
+	generatingSpinner.Success("Done!")
+
+	fmt.Println(strings.Repeat("=", 60))
+	fmt.Printf("📝 Response from Local %s Agent:\n", agent0.Kind())
+	fmt.Println(strings.Repeat("-", 60))
+	fmt.Println(response.Text)
+	fmt.Println(strings.Repeat("-", 60))
+	fmt.Println("✋ FinishReason", response.FinishReason)
+	fmt.Println(strings.Repeat("=", 60))
 
 }
+
+/*
+	sp := spinner.New("waiting...")
+	sp.Start()
+	time.Sleep(3 * time.Second)
+	sp.Success("Done!")
+
+	if sp.IsRunning() {
+		sp.Stop()
+	}
+	//sp.Stop()
+
+	sp.SetSuffix("tada").SetPrefix("").SetFrames(spinner.FramesBraille)
+	sp.Start()
+	time.Sleep(3 * time.Second)
+	sp.Error("Failed!")
+*/

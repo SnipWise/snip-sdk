@@ -6,10 +6,13 @@ import (
 	"strings"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/snipwise/snip-sdk/env"
-	"github.com/snipwise/snip-sdk/files"
+	"github.com/snipwise/snip-sdk/snip/toolbox/env"
+	"github.com/snipwise/snip-sdk/snip/toolbox/files"
 
-	"github.com/snipwise/snip-sdk/snip"
+	"github.com/snipwise/snip-sdk/snip/agents"
+	"github.com/snipwise/snip-sdk/snip/models"
+	"github.com/snipwise/snip-sdk/snip/chat"
+	"github.com/snipwise/snip-sdk/snip/compressor"
 )
 
 func main() {
@@ -31,18 +34,18 @@ func main() {
 	}
 
 	// Create the main chat agent
-	agent0, err := snip.NewAgent(ctx,
-		snip.AgentConfig{
+	agent0, err := chat.NewChatAgent(ctx,
+		agents.AgentConfig{
 			Name:               "Bob_Agentic_Agent",
 			SystemInstructions: systemInstructions,
 			ModelID:            chatModelId,
 			EngineURL:          engineURL,
 		},
-		snip.ModelConfig{
+		models.ModelConfig{
 			Temperature: 0.5,
 			TopP:        0.9,
 		},
-		snip.EnableChatStreamFlowWithMemory(),
+		chat.EnableChatStreamFlowWithMemory(),
 	)
 	if err != nil {
 		fmt.Printf("Error creating agent: %v\n", err)
@@ -50,15 +53,15 @@ func main() {
 	}
 
 	// Create a compressor agent for context compression
-	compressor, err := snip.NewCompressorAgent(
+	compressor, err := compressor.NewCompressorAgent(
 		ctx,
-		snip.AgentConfig{
+		agents.AgentConfig{
 			Name:               "MessageCompressor",
 			SystemInstructions: "",
 			ModelID:            compressorModelId,
 			EngineURL:          engineURL,
 		},
-		snip.ModelConfig{
+		models.ModelConfig{
 			Temperature: 0.3, // Lower temperature for more consistent compression
 		},
 	)
@@ -70,7 +73,7 @@ func main() {
 	// First question
 	fmt.Println("=== First Question ===")
 	answer, err := agent0.AskStreamWithMemory("What is the best pizza of the world?",
-		func(chunk snip.ChatResponse) error {
+		func(chunk agents.ChatResponse) error {
 			fmt.Print(chunk.Text)
 			return nil
 		},
@@ -109,7 +112,7 @@ func main() {
 	// Second question - with knowledge base
 	fmt.Println("\n=== Second Question (with knowledge base) ===")
 	answer, err = agent0.AskStreamWithMemory("Who invented Hawaiian pizza?",
-		func(chunk snip.ChatResponse) error {
+		func(chunk agents.ChatResponse) error {
 			fmt.Print(chunk.Text)
 			return nil
 		},
@@ -133,7 +136,7 @@ func main() {
 	// Third question
 	fmt.Println("\n=== Third Question ===")
 	answer, err = agent0.AskStreamWithMemory("What is Hawaiian pizza?",
-		func(chunk snip.ChatResponse) error {
+		func(chunk agents.ChatResponse) error {
 			fmt.Print(chunk.Text)
 			return nil
 		},
@@ -181,7 +184,7 @@ func main() {
 	fmt.Println("\nCompressing conversation (streaming)...")
 	fmt.Println(strings.Repeat("-", 80))
 
-	compressed, err := compressor.CompressMessagesStream(messages, func(chunk snip.ChatResponse) error {
+	compressed, err := compressor.CompressMessagesStream(messages, func(chunk agents.ChatResponse) error {
 		fmt.Print(chunk.Text)
 		return nil
 	})
@@ -231,7 +234,7 @@ func main() {
 	// Test a new question with the compressed context
 	fmt.Println("\n=== Testing with compressed context ===")
 	answer, err = agent0.AskStreamWithMemory("Can you remind me what we discussed about Hawaiian pizza?",
-		func(chunk snip.ChatResponse) error {
+		func(chunk agents.ChatResponse) error {
 			fmt.Print(chunk.Text)
 			return nil
 		},

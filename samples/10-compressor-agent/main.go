@@ -6,25 +6,27 @@ import (
 	"log"
 	"strings"
 
-	"github.com/snipwise/snip-sdk/env"
-	"github.com/snipwise/snip-sdk/snip"
+	"github.com/snipwise/snip-sdk/snip/toolbox/env"
+	"github.com/snipwise/snip-sdk/snip/agents"
+	"github.com/snipwise/snip-sdk/snip/models"
+	 "github.com/snipwise/snip-sdk/snip/compressor"
 )
 
 func main() {
 	ctx := context.Background()
 	engineURL := env.GetEnvOrDefault("MODEL_RUNNER_BASE_URL", "http://localhost:12434/engines/llama.cpp/v1")
-	chatModelId := env.GetEnvOrDefault("CHAT_MODEL", "hf.co/menlo/jan-nano-128k-gguf:q4_k_m")
+	chatModelId := env.GetEnvOrDefault("CHAT_MODEL", "hf.co/menlo/jan-nano-gguf:q4_k_m")
 
 	// Create a compressor agent
-	compressor, err := snip.NewCompressorAgent(
+	compressor, err := compressor.NewCompressorAgent(
 		ctx,
-		snip.AgentConfig{
+		agents.AgentConfig{
 			Name:               "TextCompressor",
 			SystemInstructions: "",
 			ModelID:            chatModelId,
 			EngineURL:          engineURL,
 		},
-		snip.ModelConfig{
+		models.ModelConfig{
 			Temperature: 0.3, // Lower temperature for more consistent compression
 		},
 	)
@@ -80,7 +82,7 @@ func main() {
 	fmt.Println("Compressing with streaming (watch it happen in real-time):")
 	fmt.Println(strings.Repeat("-", 80))
 
-	streamCompressed, err := compressor.CompressTextStream(anotherLongText, func(chunk snip.ChatResponse) error {
+	streamCompressed, err := compressor.CompressTextStream(anotherLongText, func(chunk agents.ChatResponse) error {
 		fmt.Print(chunk.Text)
 		return nil
 	})

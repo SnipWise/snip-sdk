@@ -6,10 +6,12 @@ import (
 	"strings"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/snipwise/snip-sdk/env"
-	"github.com/snipwise/snip-sdk/files"
+	"github.com/snipwise/snip-sdk/snip/toolbox/env"
+	"github.com/snipwise/snip-sdk/snip/toolbox/files"
 
-	"github.com/snipwise/snip-sdk/snip"
+	"github.com/snipwise/snip-sdk/snip/agents"
+	"github.com/snipwise/snip-sdk/snip/models"
+	"github.com/snipwise/snip-sdk/snip/chat"
 )
 
 func main() {
@@ -30,18 +32,18 @@ func main() {
 		return
 	}
 
-	agent0, err := snip.NewAgent(ctx,
-		snip.AgentConfig{
+	agent0, err := chat.NewChatAgent(ctx,
+		agents.AgentConfig{
 			Name:               "Bob_Agentic_Agent",
 			SystemInstructions: systemInstructions,
 			ModelID:            chatModelId,
 			EngineURL:          engineURL,
 		},
-		snip.ModelConfig{
+		models.ModelConfig{
 			Temperature: 0.5,
 			TopP:        0.9,
 		},
-		snip.EnableChatStreamFlowWithMemory(),
+		chat.EnableChatStreamFlowWithMemory(),
 	)
 	if err != nil {
 		fmt.Printf("Error creating agent: %v\n", err)
@@ -49,7 +51,7 @@ func main() {
 	}
 
 	answer, err := agent0.AskStreamWithMemory("What is the best pizza of the world?",
-		func(chunk snip.ChatResponse) error {
+		func(chunk agents.ChatResponse) error {
 			fmt.Print(chunk.Text)
 			return nil
 		},
@@ -86,7 +88,7 @@ func main() {
 	fmt.Printf("Messages after adding context: %d\n", len(agent0.GetMessages()))
 
 	answer, err = agent0.AskStreamWithMemory("Who invented Hawaiian pizza?",
-		func(chunk snip.ChatResponse) error {
+		func(chunk agents.ChatResponse) error {
 			fmt.Print(chunk.Text)
 			return nil
 		},
@@ -108,7 +110,7 @@ func main() {
 	fmt.Println("\n--- Add again knowledge base context ---")
 
 	answer, err = agent0.AskStreamWithMemory("What is Hawaiian pizza?",
-		func(chunk snip.ChatResponse) error {
+		func(chunk agents.ChatResponse) error {
 			fmt.Print(chunk.Text)
 			return nil
 		},
@@ -177,7 +179,7 @@ func main() {
 	// Test a new question with the replaced context
 	fmt.Println("\n--- Asking a question with new context ---")
 	answer, err = agent0.AskStreamWithMemory("Tell me about pizza.",
-		func(chunk snip.ChatResponse) error {
+		func(chunk agents.ChatResponse) error {
 			fmt.Print(chunk.Text)
 			return nil
 		},
@@ -219,7 +221,7 @@ func main() {
 	// Test with the new system messages
 	fmt.Println("\n--- Asking about French cuisine ---")
 	answer, err = agent0.AskStreamWithMemory("What is the best French dish?",
-		func(chunk snip.ChatResponse) error {
+		func(chunk agents.ChatResponse) error {
 			fmt.Print(chunk.Text)
 			return nil
 		},

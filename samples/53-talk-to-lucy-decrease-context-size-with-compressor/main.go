@@ -5,10 +5,14 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/snipwise/snip-sdk/env"
-	"github.com/snipwise/snip-sdk/files"
+	"github.com/snipwise/snip-sdk/snip/toolbox/env"
+	"github.com/snipwise/snip-sdk/snip/toolbox/files"
 
-	"github.com/snipwise/snip-sdk/snip"
+	"github.com/snipwise/snip-sdk/snip/agents"
+	"github.com/snipwise/snip-sdk/snip/chat"
+	"github.com/snipwise/snip-sdk/snip/compressor"
+	"github.com/snipwise/snip-sdk/snip/models"
+	"github.com/snipwise/snip-sdk/snip/ui/spinner"
 )
 
 func main() {
@@ -21,12 +25,12 @@ func main() {
 	//compressorModelId := env.GetEnvOrDefault("COMPRESSOR_MODEL", "hf.co/menlo/jan-nano-128k-gguf:q4_k_m")
 	compressorModelId := env.GetEnvOrDefault("COMPRESSOR_MODEL", "ai/qwen2.5:1.5B-F16")
 
-
 	systemInstructions, err := files.ReadTextFile(env.GetEnvOrDefault("SYSTEM_INSTRUCTION_PATH", "./system-instructions.md"))
 	if err != nil {
 		fmt.Printf("Error reading system instructions: %v\n", err)
 		return
 	}
+
 	knowledgeBase, err := files.ReadTextFile(env.GetEnvOrDefault("KNOWLEDGE_BASE_PATH", "./knowledge-base.md"))
 	if err != nil {
 		fmt.Printf("Error reading knowledge base: %v\n", err)
@@ -34,15 +38,15 @@ func main() {
 	}
 
 	// Create a compressor agent for context compression
-	compressor, err := snip.NewCompressorAgent(
+	compressorAgent, err := compressor.NewCompressorAgent(
 		ctx,
-		snip.AgentConfig{
+		agents.AgentConfig{
 			Name:               "MessageCompressor",
 			SystemInstructions: "",
 			ModelID:            compressorModelId,
 			EngineURL:          engineURL,
 		},
-		snip.ModelConfig{
+		models.ModelConfig{
 			Temperature: 0.3, // Lower temperature for more consistent compression
 		},
 	)
@@ -51,29 +55,28 @@ func main() {
 		return
 	}
 
-	compressor.SetCompressionPrompt(snip.DefaultCompressionPrompts.Minimalist)
+	// Override the default compression prompt with a minimalist one
+	compressorAgent.SetCompressionPrompt(compressor.DefaultCompressionPrompts.Minimalist)
 
 	// Create the main chat agent
-	agent0, err := snip.NewAgent(ctx,
-		snip.AgentConfig{
+	agent0, err := chat.NewChatAgent(ctx,
+		agents.AgentConfig{
 			Name:               "Bob_Agentic_Agent",
 			SystemInstructions: systemInstructions,
 			ModelID:            chatModelId,
 			EngineURL:          engineURL,
 		},
-		snip.ModelConfig{
+		models.ModelConfig{
 			Temperature: 0.5,
 			TopP:        0.9,
 		},
-		snip.EnableChatStreamFlowWithMemory(),
-		snip.EnableContextCompression(compressor),
+		chat.EnableChatStreamFlowWithMemory(),
+		chat.EnableContextCompression(compressorAgent),
 	)
 	if err != nil {
 		fmt.Printf("Error creating agent: %v\n", err)
 		return
 	}
-
-	// run a go routine to dispaly a waiting animation
 
 	// Add the knowledge base as a system message
 	err = agent0.AddSystemMessage(knowledgeBase)
@@ -82,17 +85,26 @@ func main() {
 		return
 	}
 
-
 	// First question
+	thinkingSpinner := spinner.New("").SetSuffix("thinking...").SetFrames(spinner.FramesDots)
+	thinkingSpinner.Start()
 	fmt.Println("=== First Question ===")
 	answer, err := agent0.AskStreamWithMemory("What is the best pizza of the world?",
-		func(chunk snip.ChatResponse) error {
-			// si text pas vide et anim pas stop -> stop anim
+		func(chunk agents.ChatResponse) error {
+
+			if thinkingSpinner.IsRunning() && chunk.FinishReason == "" {
+				thinkingSpinner.Success("Let's go!")
+				thinkingSpinner.Stop()
+			}
+
 			fmt.Print(chunk.Text)
 			return nil
 		},
 	)
 	if err != nil {
+		if thinkingSpinner.IsRunning() {
+			thinkingSpinner.Error("Failed to get response!")
+		}
 		fmt.Printf("Error asking question: %v\n", err)
 		return
 	}
@@ -108,15 +120,26 @@ func main() {
 	fmt.Println("📏 Current Context Size:", agent0.GetCurrentContextSize())
 	fmt.Println(strings.Repeat("*", 50))
 
-	resp, err := agent0.CompressContextStream(func(chunk snip.ChatResponse) error {
-		fmt.Print(chunk.Text)
+	compressSpinner := spinner.New("").SetSuffix("compressing...").SetFrames(spinner.FramesCircle)
+	compressSpinner.Start()
+
+	resp, err := agent0.CompressContextStream(func(chunk agents.ChatResponse) error {
+		//fmt.Print(chunk.Text)
+		if compressSpinner.IsRunning() && chunk.FinishReason == "stop" {
+			compressSpinner.Success("Done compressing!")
+			compressSpinner.Stop()
+		}
 		return nil
 	})
 	if err != nil {
+		if compressSpinner.IsRunning() {
+			compressSpinner.Error("Failed to compress context!")
+		}
 		fmt.Printf("Error compressing context: %v\n", err)
 		return
 	}
-	fmt.Println("\n✅ Compressed Context Summary:", resp.Text)
+
+	//fmt.Println("\n✅ Compressed Context Summary:", resp.Text)
 	fmt.Println(strings.Repeat("*", 50))
 	fmt.Println("📏 Current Context Size After Compression:", agent0.GetCurrentContextSize())
 	fmt.Println(strings.Repeat("*", 50))
@@ -124,7 +147,7 @@ func main() {
 	// Second question
 	fmt.Println("=== Second Question ===")
 	answer, err = agent0.AskStreamWithMemory("Who invented Hawaiian pizza?",
-		func(chunk snip.ChatResponse) error {
+		func(chunk agents.ChatResponse) error {
 			fmt.Print(chunk.Text)
 			return nil
 		},
@@ -145,11 +168,21 @@ func main() {
 	fmt.Println("📏 Current Context Size:", agent0.GetCurrentContextSize())
 	fmt.Println(strings.Repeat("*", 50))
 
-	resp, err = agent0.CompressContextStream(func(chunk snip.ChatResponse) error {
-		fmt.Print(chunk.Text)
+	compressSpinner.SetFrames(spinner.FramesPulsingStar)
+	compressSpinner.Start()
+
+	resp, err = agent0.CompressContextStream(func(chunk agents.ChatResponse) error {
+		//fmt.Print(chunk.Text)
+		if compressSpinner.IsRunning() && chunk.FinishReason == "stop" {
+			compressSpinner.Success("Done compressing!")
+			compressSpinner.Stop()
+		}
 		return nil
 	})
 	if err != nil {
+		if compressSpinner.IsRunning() {
+			compressSpinner.Error("Failed to compress context!")
+		}
 		fmt.Printf("Error compressing context: %v\n", err)
 		return
 	}

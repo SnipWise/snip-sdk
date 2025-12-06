@@ -4,8 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/snipwise/snip-sdk/env"
-	"github.com/snipwise/snip-sdk/snip"
+	"github.com/snipwise/snip-sdk/snip/agents"
+	"github.com/snipwise/snip-sdk/snip/chat"
+	"github.com/snipwise/snip-sdk/snip/models"
+	"github.com/snipwise/snip-sdk/snip/toolbox/env"
+	"github.com/snipwise/snip-sdk/snip/ui/spinner"
 )
 
 func main() {
@@ -14,36 +17,48 @@ func main() {
 	engineURL := env.GetEnvOrDefault("MODEL_RUNNER_BASE_URL", "http://localhost:12434/engines/llama.cpp/v1")
 	chatModelId := env.GetEnvOrDefault("CHAT_MODEL", "hf.co/menlo/jan-nano-gguf:q4_k_m")
 
-	agent0, err := snip.NewAgent(ctx,
-		snip.AgentConfig{
+	thinkingSpinner := spinner.New("").SetSuffix("thinking...").SetFrames(spinner.FramesDots)
+	generatingSpinner := spinner.New("").SetSuffix("generating...").SetFrames(spinner.FramesPulsingStar)
+
+	agent0, err := chat.NewChatAgent(ctx,
+		agents.AgentConfig{
 			Name:               "Local Agent",
 			SystemInstructions: "You are a helpful assistant.",
 			ModelID:            chatModelId,
 			EngineURL:          engineURL,
 		},
-		snip.ModelConfig{
+		models.ModelConfig{
 			Temperature: 0.5,
 			TopP:        0.9,
 		},
-		snip.EnableChatFlowWithMemory(),
-		snip.EnableChatStreamFlowWithMemory(),
+		chat.EnableChatFlowWithMemory(),
+		chat.EnableChatStreamFlowWithMemory(),
 	)
 	if err != nil {
 		fmt.Printf("Error creating agent: %v\n", err)
 		return
 	}
 
-	//agent0.ModelID = "ai/qwen2.5:latest"
+	generatingSpinner.Start()
 
 	response, err := agent0.AskWithMemory("What is the capital of France?")
 	if err != nil {
 		fmt.Printf("Error asking question: %v\n", err)
+		generatingSpinner.Error("Failed!")
 		return
 	}
-	fmt.Printf("Response from Local Agent: %s\n", response)
+	generatingSpinner.Success("Done!")
 
-	_, err = agent0.AskStreamWithMemory("What is the capital of Belgium?",
-		func(chunk snip.ChatResponse) error {
+	fmt.Printf("Response from Local Agent: %s\n", response.Text)
+
+	thinkingSpinner.Start()
+
+	_, err = agent0.AskStreamWithMemory("What is the capital of Belgium? And tell me something about its history.",
+		func(chunk agents.ChatResponse) error {
+			if thinkingSpinner.IsRunning() && chunk.FinishReason == "" {
+				thinkingSpinner.Success("Let's go!")
+				thinkingSpinner.Stop()
+			}
 			fmt.Print(chunk.Text)
 			return nil
 		},
