@@ -36,6 +36,9 @@ type ToolsAgent struct {
 	// flow(s) for the agent
 
 	logger logger.Logger
+
+	toolExecutionConfirmation *ToolExecutionConfirmation
+	toolExecution *ToolExecution
 }
 
 func NewToolsAgent(

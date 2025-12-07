@@ -478,6 +478,158 @@ func (s *ColorSelect) getDefaultLabel() string {
 	return ""
 }
 
+// ColorSelectKey represents a selection prompt with keyboard shortcuts
+type ColorSelectKey struct {
+	message       string
+	choices       []Choice
+	defaultValue  string
+	messageColor  string
+	choiceColor   string
+	defaultColor  string
+	keyColor      string
+	errorColor    string
+	promptSymbol  string
+	defaultSymbol string
+	errorSymbol   string
+}
+
+// NewColorSelectKey creates a new colored select prompt with keyboard shortcuts
+// Each choice should have a single-character Value (the key to press)
+func NewColorSelectKey(message string, choices []Choice) *ColorSelectKey {
+	return &ColorSelectKey{
+		message:       message,
+		choices:       choices,
+		defaultValue:  "",
+		messageColor:  ColorCyan,
+		choiceColor:   ColorWhite,
+		defaultColor:  ColorYellow,
+		keyColor:      ColorGray,
+		errorColor:    ColorRed,
+		promptSymbol:  "❯",
+		defaultSymbol: "●",
+		errorSymbol:   "✗",
+	}
+}
+
+// SetDefault sets the default choice by value
+func (s *ColorSelectKey) SetDefault(value string) *ColorSelectKey {
+	s.defaultValue = value
+	return s
+}
+
+// SetMessageColor sets the color of the message
+func (s *ColorSelectKey) SetMessageColor(color string) *ColorSelectKey {
+	s.messageColor = color
+	return s
+}
+
+// SetChoiceColor sets the color of choice labels
+func (s *ColorSelectKey) SetChoiceColor(color string) *ColorSelectKey {
+	s.choiceColor = color
+	return s
+}
+
+// SetDefaultColor sets the color of the default choice indicator
+func (s *ColorSelectKey) SetDefaultColor(color string) *ColorSelectKey {
+	s.defaultColor = color
+	return s
+}
+
+// SetKeyColor sets the color of keyboard shortcuts
+func (s *ColorSelectKey) SetKeyColor(color string) *ColorSelectKey {
+	s.keyColor = color
+	return s
+}
+
+// SetErrorColor sets the color of error messages
+func (s *ColorSelectKey) SetErrorColor(color string) *ColorSelectKey {
+	s.errorColor = color
+	return s
+}
+
+// SetColors sets all colors at once
+func (s *ColorSelectKey) SetColors(messageColor, choiceColor, defaultColor, keyColor, errorColor string) *ColorSelectKey {
+	s.messageColor = messageColor
+	s.choiceColor = choiceColor
+	s.defaultColor = defaultColor
+	s.keyColor = keyColor
+	s.errorColor = errorColor
+	return s
+}
+
+// SetSymbols sets custom symbols
+func (s *ColorSelectKey) SetSymbols(prompt, defaultMark, error string) *ColorSelectKey {
+	s.promptSymbol = prompt
+	s.defaultSymbol = defaultMark
+	s.errorSymbol = error
+	return s
+}
+
+// Run displays the selection prompt and returns the selected value
+func (s *ColorSelectKey) Run() (string, error) {
+	if len(s.choices) == 0 {
+		return "", fmt.Errorf("no choices available")
+	}
+
+	reader := bufio.NewReader(os.Stdin)
+
+	// Build valid keys map
+	validKeys := make(map[string]string)
+	var keyList []string
+	for _, choice := range s.choices {
+		validKeys[strings.ToLower(choice.Value)] = choice.Value
+		keyList = append(keyList, choice.Value)
+	}
+
+	// Display message and choices
+	fmt.Printf("%s%s %s%s\n", s.messageColor, s.promptSymbol, s.message, ColorReset)
+	for _, choice := range s.choices {
+		if choice.Value == s.defaultValue {
+			fmt.Printf("  %s%s)%s %s%s%s %s%s%s\n",
+				s.keyColor, choice.Value, ColorReset,
+				s.choiceColor, choice.Label, ColorReset,
+				s.defaultColor, s.defaultSymbol, ColorReset)
+		} else {
+			fmt.Printf("  %s%s)%s %s%s%s\n",
+				s.keyColor, choice.Value, ColorReset,
+				s.choiceColor, choice.Label, ColorReset)
+		}
+	}
+
+	for {
+		// Display the prompt
+		if s.defaultValue != "" {
+			fmt.Printf("%sEnter choice [%s] (default: %s)%s: ",
+				s.keyColor, strings.Join(keyList, "/"), s.defaultValue, ColorReset)
+		} else {
+			fmt.Printf("%sEnter choice [%s]%s: ",
+				s.keyColor, strings.Join(keyList, "/"), ColorReset)
+		}
+
+		// Read user input
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			return "", fmt.Errorf("error reading input: %w", err)
+		}
+
+		// Clean the input
+		input = strings.ToLower(strings.TrimSpace(input))
+
+		// Use default value if input is empty
+		if input == "" && s.defaultValue != "" {
+			return s.defaultValue, nil
+		}
+
+		// Check if the input is a valid key
+		if selectedValue, exists := validKeys[input]; exists {
+			return selectedValue, nil
+		}
+
+		fmt.Printf("%s%s Please enter one of: %s%s\n",
+			s.errorColor, s.errorSymbol, strings.Join(keyList, ", "), ColorReset)
+	}
+}
+
 // ColorMultiChoice represents a multi-choice prompt with color support
 type ColorMultiChoice struct {
 	message       string

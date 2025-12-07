@@ -13,6 +13,8 @@ import (
 	"github.com/snipwise/snip-sdk/snip/toolbox/env"
 	"github.com/snipwise/snip-sdk/snip/toolbox/logger"
 	"github.com/snipwise/snip-sdk/snip/tools"
+	"github.com/snipwise/snip-sdk/snip/ui/prompt"
+	"github.com/snipwise/snip-sdk/snip/ui/spinner"
 )
 
 func main() {
@@ -20,6 +22,46 @@ func main() {
 	engineURL := env.GetEnvOrDefault("MODEL_RUNNER_BASE_URL", "http://localhost:12434/engines/llama.cpp/v1")
 	toolModelId := env.GetEnvOrDefault("CHAT_MODEL", "hf.co/menlo/jan-nano-gguf:q4_k_m")
 
+	progress := spinner.NewWithColor("").SetSuffix("initialize...").SetFrames(spinner.FramesPulsingStar)
+	progress.SetFrameColor(spinner.ColorBold + spinner.ColorBrightRed).SetSuffixColor(spinner.ColorYellow)
+	progress.Start()
+	//time.Sleep(2 * time.Second)
+	confirmation := tools.ToolExecutionConfirmation{
+		Question: func(toolName string, toolInput any, toolCallRef string) tools.ConfirmationResponse {
+			progress.Stop()
+			return prompt.HumanConfirmation(fmt.Sprintf("Execute %s with %v?", toolName, toolInput))
+		},
+		OnConfirmed: func(toolName string, toolInput any, toolCallRef string, output any, err error) {
+			// Tool executed successfully
+			progress.Start()
+			if toolName == "roll_dice" && err == nil {
+				result, err := tools.Transform[DiceRollResult](output)
+				if err != nil {
+					fmt.Printf("❌ Error converting result: %v\n", err)
+					return
+				}
+				fmt.Printf("🎲 Rolls: %v | Total: %d\n", result.Rolls, result.Total)
+			} else if toolName == "generate_character_name" && err == nil {
+				result, err := tools.Transform[CharacterNameResult](output)
+				if err != nil {
+					fmt.Printf("❌ Error converting result: %v\n", err)
+					return
+				}
+				fmt.Printf("🧙 Generated %s name: %s\n", result.Race, result.Name)
+			}
+		},
+		OnDenied: func(toolName string, toolInput any, toolCallRef string) {
+			fmt.Println("⏩ Tool execution denied by user.")
+		},
+		OnQuit: func(toolName string, toolInput any, toolCallRef string) {
+			fmt.Println("🛑 Tool execution aborted by user.")
+		},
+		Default: func() {
+			fmt.Println("No valid response received. Skipping tool execution.")
+		},
+	}
+
+	progress.SetSuffix("instantiate agent...")
 	// Create a tools agent
 	dungeonMaster, err := tools.NewToolsAgent(
 		ctx,
@@ -36,66 +78,15 @@ func main() {
 			Temperature: 0.0,
 		},
 		tools.EnableToolCallFlow(),
-		//tools.WithLogLevel(logger.LevelDebug),
 		tools.WithLogLevel(logger.LevelNone),
-		tools.WithConfirmation(tools.ToolExecutionConfirmation{
-			Question: func(toolName string, toolInput any, toolCallRef string) tools.ConfirmationResponse {
-
-				fmt.Println("✋ request:", toolName, toolInput, toolCallRef)
-				fmt.Println("Do you want to execute the tool? (y/n/q): ")
-
-				var response string
-				_, err := fmt.Scanln(&response)
-				if err != nil {
-					fmt.Println("Error reading input:", err)
-					return tools.Quit
-				}
-				response = strings.ToLower(strings.TrimSpace(response))[0:1]
-				switch response {
-				case "q":
-					return tools.Quit
-				case "n":
-					return tools.Denied
-				case "y":
-					return tools.Confirmed
-				default:
-					return tools.Denied
-				}
-
-			},
-			OnConfirmed: func(toolName string, toolInput any, toolCallRef string, output any, err error) {
-				fmt.Println("✅ Tool executed successfully:", toolName, output)
-				if toolName == "roll_dice" && err == nil {
-					result, err := tools.Transform[DiceRollResult](output)
-					if err != nil {
-						fmt.Printf("❌ Error converting result: %v\n", err)
-						return
-					}
-					fmt.Printf("🎲 Rolls: %v | Total: %d\n", result.Rolls, result.Total)
-				} else if toolName == "generate_character_name" && err == nil {
-					result, err := tools.Transform[CharacterNameResult](output)
-					if err != nil {
-						fmt.Printf("❌ Error converting result: %v\n", err)
-						return
-					}
-					fmt.Printf("🧙 Generated %s name: %s\n", result.Race, result.Name)
-				}
-
-			},
-			OnDenied: func(toolName string, toolInput any, toolCallRef string) {
-				fmt.Println("⏩ Tool execution denied by user.")
-			},
-			OnQuit: func(toolName string, toolInput any, toolCallRef string) {
-				fmt.Println("🛑 Tool execution aborted by user.")
-			},
-			Default: func() {
-				fmt.Println("No valid response received. Skipping tool execution.")
-			},
-		}),
+		tools.WithConfirmation(confirmation),
 	)
 	if err != nil {
 		log.Fatalf("Error creating tools agent: %v", err)
 	}
+
+	// Register tools
+	progress.SetSuffix("register tools...")
 
 	tools.AddToolToAgent(
 		dungeonMaster,
@@ -114,6 +105,7 @@ func main() {
 		},
 	)
 
+	progress.SetSuffix("running tool calls...")
 	response, err := dungeonMaster.RunToolCalls(
 		`
 		Roll 3 dices with 6 faces each.
@@ -125,6 +117,8 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	progress.Success("done!")
+	progress.Stop()
 
 	fmt.Println("Final Response:", response.Text)
 	fmt.Println("\n📋 Tool Calls Results:")

@@ -151,16 +151,7 @@ func TestMultiChoiceWithDefaults(t *testing.T) {
 	}
 }
 
-// TestToolExecutionPromptCreation tests tool execution prompt
-func TestToolExecutionPromptCreation(t *testing.T) {
-	toolPrompt := NewToolExecutionPrompt("my_tool")
-	if toolPrompt == nil {
-		t.Fatal("Expected tool prompt to be created")
-	}
-	if toolPrompt.toolName != "my_tool" {
-		t.Errorf("Expected tool name to be 'my_tool', got '%s'", toolPrompt.toolName)
-	}
-}
+
 
 // TestEmailValidator provides a reusable email validator
 func TestEmailValidator(t *testing.T) {
@@ -190,44 +181,6 @@ func TestEmailValidator(t *testing.T) {
 	}
 }
 
-// TestColorToolExecutionPromptCreation tests colored tool execution prompt
-func TestColorToolExecutionPromptCreation(t *testing.T) {
-	toolPrompt := NewColorToolExecutionPrompt("my_tool")
-	if toolPrompt == nil {
-		t.Fatal("Expected tool prompt to be created")
-	}
-	if toolPrompt.toolName != "my_tool" {
-		t.Errorf("Expected tool name to be 'my_tool', got '%s'", toolPrompt.toolName)
-	}
-	// Check default colors
-	if toolPrompt.messageColor != ColorBrightYellow {
-		t.Error("Expected default message color to be ColorBrightYellow")
-	}
-	if toolPrompt.choiceColor != ColorWhite {
-		t.Error("Expected default choice color to be ColorWhite")
-	}
-	if toolPrompt.defaultColor != ColorBrightGreen {
-		t.Error("Expected default color to be ColorBrightGreen")
-	}
-}
-
-// TestColorToolExecutionPromptWithColors tests color customization
-func TestColorToolExecutionPromptWithColors(t *testing.T) {
-	toolPrompt := NewColorToolExecutionPrompt("test_tool").
-		SetMessageColor(ColorRed).
-		SetChoiceColor(ColorBlue).
-		SetDefaultColor(ColorGreen)
-
-	if toolPrompt.messageColor != ColorRed {
-		t.Error("Message color not set correctly")
-	}
-	if toolPrompt.choiceColor != ColorBlue {
-		t.Error("Choice color not set correctly")
-	}
-	if toolPrompt.defaultColor != ColorGreen {
-		t.Error("Default color not set correctly")
-	}
-}
 
 // TestFluentAPI tests the fluent API pattern
 func TestFluentAPI(t *testing.T) {

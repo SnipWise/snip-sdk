@@ -4,8 +4,8 @@ type ToolCallsRequest struct {
 	Prompt string `json:"prompt"`
 }
 type ToolCallsResult struct {
-	Text string              `json:"text"`
-	List []map[string]string `json:"list"`
+	Text string            `json:"text"`
+	List []map[string]any `json:"list"`
 }
 
 type ContentItem struct {

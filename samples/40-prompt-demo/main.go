@@ -91,24 +91,6 @@ func main() {
 	}
 	fmt.Printf("✓ You selected: %v\n\n", selectedTools)
 
-	// 7. Tool execution confirmation (like in flow.too.call.go)
-	fmt.Println("7. Tool Execution Confirmation")
-	toolPrompt := prompt.NewToolExecutionPrompt("get_weather")
-	decision, err := toolPrompt.Run()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	switch decision {
-	case prompt.ToolExecute:
-		fmt.Println("✓ Executing tool 'get_weather'...")
-		fmt.Println("  (Simulated) Weather: Sunny, 25°C")
-	case prompt.ToolSkip:
-		fmt.Println("✗ Tool execution skipped.")
-	case prompt.ToolQuit:
-		fmt.Println("✗ Exiting the program.")
-		return
-	}
 
 	fmt.Println("\n=== Demo Complete ===")
 }

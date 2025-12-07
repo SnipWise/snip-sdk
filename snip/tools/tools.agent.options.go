@@ -9,25 +9,25 @@ type ToolsAgentOption func(*ToolsAgent)
 
 // WithLogger sets a custom logger for the agent
 func WithLogger(log logger.Logger) ToolsAgentOption {
-	return func(a *ToolsAgent) {
-		a.logger = log
+	return func(toolsAgent *ToolsAgent) {
+		toolsAgent.logger = log
 	}
 }
 
 // WithVerbose enables verbose logging (INFO level) with agent name prefix
 func WithVerbose(verbose bool) ToolsAgentOption {
-	return func(a *ToolsAgent) {
+	return func(toolsAgent *ToolsAgent) {
 		if verbose {
-			a.logger = logger.NewConsoleLoggerWithPrefix(logger.LevelInfo, a.Name)
+			toolsAgent.logger = logger.NewConsoleLoggerWithPrefix(logger.LevelInfo, toolsAgent.Name)
 		} else {
-			a.logger = &logger.NoOpLogger{}
+			toolsAgent.logger = &logger.NoOpLogger{}
 		}
 	}
 }
 
 // WithLogLevel sets the log level for the agent
 func WithLogLevel(level logger.LogLevel) ToolsAgentOption {
-	return func(a *ToolsAgent) {
-		a.logger = logger.NewConsoleLoggerWithPrefix(level, a.Name)
+	return func(toolsAgent *ToolsAgent) {
+		toolsAgent.logger = logger.NewConsoleLoggerWithPrefix(level, toolsAgent.Name)
 	}
 }

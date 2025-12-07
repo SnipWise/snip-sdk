@@ -36,7 +36,16 @@ func main() {
 			Temperature: 0.0,
 		},
 		tools.EnableAutoToolCallFlow(),
-		tools.WithLogLevel(logger.LevelDebug),
+		tools.WithLogLevel(logger.LevelDebug), // ✋ logs activated
+		tools.WithToolExecution(tools.ToolExecution{
+			OnExecuted: func(toolName string, toolInput any, toolCallRef string, output any, err error) {
+				if err != nil {
+					log.Printf("❌ Tool %q execution failed: %v", toolName, err)
+					return
+				}
+				log.Printf("✅ Tool %q executed successfully with input: %v | output: %v", toolName, toolInput, output)
+			},
+		}),
 	)
 	if err != nil {
 		log.Fatalf("Error creating tools agent: %v", err)
@@ -72,7 +81,40 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Println("Final Response:", response)
+	fmt.Println(strings.Repeat("=", 60))
+	fmt.Println("Tool calls:", response.List)
+
+	fmt.Println(strings.Repeat("=", 60))
+	fmt.Println("Final Response:!")
+	fmt.Println(response.Text)
+	fmt.Println(strings.Repeat("=", 60))
+
+	fmt.Println("\n📋 Tool Calls Results:")
+
+	// Display tool call results
+	for _, toolResult := range response.List {
+		for toolName, output := range toolResult {
+			fmt.Printf("\n🔧 Tool: %s\n", toolName)
+
+			switch toolName {
+			case "roll_dice":
+				result, err := tools.Transform[DiceRollResult](output)
+				if err != nil {
+					fmt.Printf("❌ Error transforming dice roll: %v\n", err)
+					continue
+				}
+				fmt.Printf("   🎲 Rolls: %v | Total: %d\n", result.Rolls, result.Total)
+
+			case "generate_character_name":
+				result, err := tools.Transform[CharacterNameResult](output)
+				if err != nil {
+					fmt.Printf("❌ Error transforming character name: %v\n", err)
+					continue
+				}
+				fmt.Printf("   🧙 %s character: %s\n", result.Race, result.Name)
+			}
+		}
+	}
 
 }
 

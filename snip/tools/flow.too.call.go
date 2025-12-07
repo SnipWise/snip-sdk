@@ -2,12 +2,9 @@ package tools
 
 import (
 	"context"
-	"fmt"
-	"strings"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/snipwise/snip-sdk/snip/toolbox/logger"
 )
 
 func EnableToolCallFlow() ToolsAgentOption {
@@ -30,7 +27,7 @@ func initializeToolCallFlow(toolsAgent *ToolsAgent) {
 			lastAssistantMessage := "" // Final AI message
 
 			//totalOfToolsCalls := 0
-			toolCallsResults := []map[string]string{}
+			toolCallsResults := []map[string]any{}
 
 			history := []*ai.Message{}
 			// STEP 3: Start the conversation loop
@@ -92,45 +89,36 @@ func initializeToolCallFlow(toolsAgent *ToolsAgent) {
 						}
 					}
 
-					if toolsAgent.logger.GetLevel() == logger.LevelDebug {
-						displayToolRequets(req)
-					}
-
 					if tool == nil {
 						toolsAgent.logger.Error("❌ Tool %q not found", req.Name)
 						continue
 					}
 
-					// TODO: define is as an otptional callback in the ToolsAgent config or somewhere else
 					// Execute tool with user confirmation
 					runToolExecutionWithConfirmation := func() {
-						var response string
 						for {
-							fmt.Printf("Do you want to execute tool %q? (y/n/q): ", req.Name)
-							_, err := fmt.Scanln(&response)
-							if err != nil {
-								fmt.Println("Error reading input:", err)
-								continue
-							}
-							response = strings.ToLower(strings.TrimSpace(response))
+
+							response := toolsAgent.toolExecutionConfirmation.Question(req.Name, req.Input, req.Ref)
 
 							switch response {
-							case "q":
-								fmt.Println("Exiting the program.")
+							case Quit:
+								if toolsAgent.toolExecutionConfirmation != nil && toolsAgent.toolExecutionConfirmation.OnQuit != nil {
+									toolsAgent.toolExecutionConfirmation.OnQuit(req.Name, req.Input, req.Ref)
+								} else {
+									// No OnQuit handler defined
+									toolsAgent.logger.Warn("✋ No OnQuit handler defined")
+									toolsAgent.logger.Debug("🛑 Tool execution aborted by user.")
+								}
 								stopped = true
 								return
-							case "y":
+							case Confirmed:
 								output, err := tool.RunRaw(ctx, req.Input)
+
 								if err != nil {
 									toolsAgent.logger.Error("❌ Tool %q execution failed: %v", tool.Name(), err)
 									// Exit the program on tool execution error
 									stopped = true
 									return
-								}
-
-								// IMPORTANT: or put an argument to execConfirmation() to disable output display
-								if toolsAgent.logger.GetLevel() == logger.LevelDebug {
-									displayToolCallResult(output)
 								}
 
 								part := ai.NewToolResponsePart(&ai.ToolResponse{
@@ -141,27 +129,22 @@ func initializeToolCallFlow(toolsAgent *ToolsAgent) {
 
 								history = append(history, ai.NewMessage(ai.RoleTool, nil, part))
 
-								toolCallOutput, errOutput := castToToolOutput(output)
-								if errOutput != nil {
-									toolsAgent.logger.Warn("⚠️ Warning: failed to cast tool output: %v", errOutput)
-								}
+								// Store the raw output (not converted to string) so it can be transformed later
+								toolCallsResults = append(toolCallsResults, map[string]any{
+									tool.Name(): output,
+								})
 
-								if len(toolCallOutput.Content) > 0 {
-									toolCallsResults = append(toolCallsResults, map[string]string{
-										tool.Name(): toolCallOutput.Content[0].Text,
-									})
+								if toolsAgent.toolExecutionConfirmation != nil && toolsAgent.toolExecutionConfirmation.OnConfirmed != nil {
+									toolsAgent.toolExecutionConfirmation.OnConfirmed(req.Name, req.Input, req.Ref, output, err)
 								} else {
-									// Fallback: use the raw output as a string
-									outputStr := fmt.Sprintf("%v", output)
-									toolCallsResults = append(toolCallsResults, map[string]string{
-										tool.Name(): outputStr,
-									})
+									// No OnConfirmed handler defined
+									toolsAgent.logger.Warn("✋ No OnConfirmed handler defined")
+									toolsAgent.logger.Debug("✅ Tool executed successfully: %s", tool.Name())
 								}
-
+								
 								return
-							case "n":
-								fmt.Println("⏩ Skipping tool execution.", req.Name, req.Ref)
-
+							case Denied:
+								// Skip tool execution
 								// Add tool response indicating the tool was not executed
 								part := ai.NewToolResponsePart(&ai.ToolResponse{
 									Name:   req.Name,
@@ -170,10 +153,26 @@ func initializeToolCallFlow(toolsAgent *ToolsAgent) {
 								})
 								history = append(history, ai.NewMessage(ai.RoleTool, nil, part))
 
+								if toolsAgent.toolExecutionConfirmation != nil && toolsAgent.toolExecutionConfirmation.OnDenied != nil {
+									toolsAgent.toolExecutionConfirmation.OnDenied(req.Name, req.Input, req.Ref)
+								} else {
+									// No OnDenied handler defined
+									toolsAgent.logger.Warn("✋ No OnDenied handler defined")
+									toolsAgent.logger.Debug("⏩ Tool execution denied by user.")
+								}
 								return
 							default:
-								fmt.Println("Please enter 'y' or 'n'.")
-								continue
+								// Handle default case
+								if toolsAgent.toolExecutionConfirmation != nil && toolsAgent.toolExecutionConfirmation.Default != nil {
+									toolsAgent.toolExecutionConfirmation.Default()
+								} else {
+									// No Default handler defined
+									toolsAgent.logger.Warn("✋ No Default handler defined")
+									toolsAgent.logger.Debug("No valid response received. Skipping tool execution.")
+								}
+
+								//continue
+								return
 							}
 
 						}

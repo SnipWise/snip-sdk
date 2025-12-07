@@ -161,31 +161,6 @@ func main() {
 	fmt.Printf("%s✓ Company: %s%s\n",
 		prompt.ColorBlue, company, prompt.ColorReset)
 
-	// 9. Colored Tool Execution Prompt
-	fmt.Println("\n9. Colored Tool Execution Confirmation")
-	colorToolPrompt := prompt.NewColorToolExecutionPrompt("send_email").
-		SetMessageColor(prompt.ColorBrightYellow).
-		SetChoiceColor(prompt.ColorWhite).
-		SetDefaultColor(prompt.ColorBrightGreen)
-
-	decision, err := colorToolPrompt.Run()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	switch decision {
-	case prompt.ToolExecute:
-		fmt.Printf("%s✓ Executing tool 'send_email'...%s\n",
-			prompt.ColorGreen, prompt.ColorReset)
-		fmt.Println("  (Simulated) Email sent successfully!")
-	case prompt.ToolSkip:
-		fmt.Printf("%s⏭️  Tool execution skipped.%s\n",
-			prompt.ColorYellow, prompt.ColorReset)
-	case prompt.ToolQuit:
-		fmt.Printf("%s👋 Exiting the program.%s\n",
-			prompt.ColorRed, prompt.ColorReset)
-		return
-	}
 
 	fmt.Printf("\n%s=== Demo Complete ===%s\n",
 		prompt.ColorBrightGreen, prompt.ColorReset)

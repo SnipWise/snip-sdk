@@ -2,11 +2,9 @@ package tools
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/snipwise/snip-sdk/snip/toolbox/logger"
 )
 
 func EnableAutoToolCallFlow() ToolsAgentOption {
@@ -26,7 +24,7 @@ func initializeAutoToolCallFlow(toolsAgent *ToolsAgent) {
 			lastAssistantMessage := "" // Final AI message
 
 			//totalOfToolsCalls := 0
-			toolCallsResults := []map[string]string{}
+			toolCallsResults := []map[string]any{}
 
 			history := []*ai.Message{}
 			// STEP 3: Start the conversation loop
@@ -88,10 +86,6 @@ func initializeAutoToolCallFlow(toolsAgent *ToolsAgent) {
 						}
 					}
 
-					if toolsAgent.logger.GetLevel() == logger.LevelDebug {
-						displayToolRequets(req)
-					}
-
 					if tool == nil {
 						toolsAgent.logger.Error("❌ Tool %q not found", req.Name)
 						continue
@@ -107,11 +101,6 @@ func initializeAutoToolCallFlow(toolsAgent *ToolsAgent) {
 							return
 						}
 
-						// IMPORTANT: or put an argument to execConfirmation() to disable output display
-						if toolsAgent.logger.GetLevel() == logger.LevelDebug {
-							displayToolCallResult(output)
-						}
-
 						part := ai.NewToolResponsePart(&ai.ToolResponse{
 							Name:   req.Name,
 							Ref:    req.Ref,
@@ -120,21 +109,13 @@ func initializeAutoToolCallFlow(toolsAgent *ToolsAgent) {
 
 						history = append(history, ai.NewMessage(ai.RoleTool, nil, part))
 
-						toolCallOutput, errOutput := castToToolOutput(output)
-						if errOutput != nil {
-							toolsAgent.logger.Warn("⚠️ Warning: failed to cast tool output: %v", errOutput)
-						}
+						// Store the raw output (not converted to string) so it can be transformed later
+						toolCallsResults = append(toolCallsResults, map[string]any{
+							tool.Name(): output,
+						})
 
-						if len(toolCallOutput.Content) > 0 {
-							toolCallsResults = append(toolCallsResults, map[string]string{
-								tool.Name(): toolCallOutput.Content[0].Text,
-							})
-						} else {
-							// Fallback: use the raw output as a string
-							outputStr := fmt.Sprintf("%v", output)
-							toolCallsResults = append(toolCallsResults, map[string]string{
-								tool.Name(): outputStr,
-							})
+						if toolsAgent.toolExecution != nil && toolsAgent.toolExecution.OnExecuted != nil {
+							toolsAgent.toolExecution.OnExecuted(req.Name, req.Input, req.Ref, output, err)
 						}
 
 					}
