@@ -11,5 +11,6 @@ const (
 	Intent AgentKind = "Intent"
 	Rag    AgentKind = "Rag"
 	Compressor AgentKind = "Compressor"
+	Structured AgentKind = "Structured"
 )
 

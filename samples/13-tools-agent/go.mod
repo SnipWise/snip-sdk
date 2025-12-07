@@ -9,7 +9,7 @@ require github.com/snipwise/snip-sdk v0.0.0
 require (
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect
-	github.com/firebase/genkit/go v1.2.0
+	github.com/firebase/genkit/go v1.2.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/goccy/go-yaml v1.17.1 // indirect

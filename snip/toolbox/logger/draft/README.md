@@ -64,15 +64,7 @@ log.SetLevel(logger.LevelWarn)
 currentLevel := log.GetLevel()
 ```
 
-### Using NoOp Logger (No Output)
 
-```go
-// Explicitly use NoOp logger (zero overhead)
-log := &logger.NoOpLogger{}
-
-// All calls do nothing
-log.Info("This will not appear")
-```
 
 ## Log Levels
 
@@ -215,18 +207,3 @@ agent, err := chat.NewChatAgent(
    - WARN: Potential issues that don't prevent operation
    - ERROR: Actual errors that need attention
 5. **Format messages clearly**: Include context and relevant data
-
-## Testing
-
-Run the tests:
-
-```bash
-cd snip/toolbox/logger
-go test -v
-```
-
-With coverage:
-
-```bash
-go test -v -cover
-```
