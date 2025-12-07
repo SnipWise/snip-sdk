@@ -30,7 +30,8 @@ type ToolsAgent struct {
 	ToolsIndex      []ai.ToolRef
 	toolCallingFlow *core.Flow[*ToolCallsRequest, ToolCallsResult, struct{}]
 
-	genKitInstance *genkit.Genkit
+	genKitInstance      *genkit.Genkit
+	genKitToolsInstance *genkit.Genkit
 
 	// flow(s) for the agent
 
@@ -53,6 +54,16 @@ func NewToolsAgent(
 	}
 	genKitInstance := genkit.Init(ctx, genkit.WithPlugins(oaiPlugin))
 
+	// NOTE: separate Genkit instance for tools to avoid tool registration conflicts
+	// TODO: look for ways we could do it differently
+	oaiToolsPlugin := &oai.OpenAI{
+		APIKey: "I💙DockerModelRunner",
+		Opts: []option.RequestOption{
+			option.WithBaseURL(toolsAgentConfig.EngineURL),
+		},
+	}
+	genKitToolsInstance := genkit.Init(ctx, genkit.WithPlugins(oaiToolsPlugin))
+
 	// Check if model is available
 	if !openaihelpers.IsModelAvailable(ctx, toolsAgentConfig.EngineURL, toolsAgentConfig.ModelID) {
 		return nil, fmt.Errorf("model %s is not available at %s", toolsAgentConfig.ModelID, toolsAgentConfig.EngineURL)
@@ -69,8 +80,9 @@ func NewToolsAgent(
 
 		Config: modelConfig,
 
-		ctx:            ctx,
-		genKitInstance: genKitInstance,
+		ctx:                 ctx,
+		genKitInstance:      genKitInstance,
+		genKitToolsInstance: genKitToolsInstance,
 
 		logger: logger.GetLoggerFromEnvWithPrefix(toolsAgentConfig.Name), // Default logger from env
 	}
@@ -86,15 +98,21 @@ func NewToolsAgent(
 	return toolsAgent, nil
 }
 
-
-func (toolsAgent *ToolsAgent) SetTools(tools []ai.ToolRef) { 
-	toolsAgent.ToolsIndex = tools
+// AddToolToAgent adds a tool to the ToolsAgent's tool index.
+func AddToolToAgent[Input any, Output any](toolsAgent *ToolsAgent, name, description string, fn func(ctx *ai.ToolContext, input Input) (Output, error)) {
+	toolRef := genkit.DefineTool(toolsAgent.genKitToolsInstance, name, description, fn)
+	toolsAgent.ToolsIndex = append(toolsAgent.ToolsIndex, toolRef)
 }
 
-func (toolsAgent *ToolsAgent) GetTools() []ai.ToolRef {
-	return toolsAgent.ToolsIndex
+// AddToolsToAgent adds multiple tools to the ToolsAgent's tool index.
+func AddToolsToAgent[Input any, Output any](toolsAgent *ToolsAgent, toolsMap map[string]struct {
+	Description string
+	Func        func(ctx *ai.ToolContext, input Input) (Output, error)
+}) {
+	for name, tool := range toolsMap {
+		AddToolToAgent(toolsAgent, name, tool.Description, tool.Func)
+	}
 }
-
 
 // RunToolCalls runs the tool-calling flow with the given prompt.
 func (toolsAgent *ToolsAgent) RunToolCalls(prompt string) (ToolCallsResult, error) {

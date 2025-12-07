@@ -9,15 +9,11 @@ import (
 	"time"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/genkit"
-	"github.com/openai/openai-go/option"
 	"github.com/snipwise/snip-sdk/snip/agents"
 	"github.com/snipwise/snip-sdk/snip/models"
 	"github.com/snipwise/snip-sdk/snip/toolbox/env"
 	"github.com/snipwise/snip-sdk/snip/toolbox/logger"
 	"github.com/snipwise/snip-sdk/snip/tools"
-
-	oai "github.com/firebase/genkit/go/plugins/compat_oai/openai"
 )
 
 func main() {
@@ -47,30 +43,22 @@ func main() {
 		log.Fatalf("Error creating tools agent: %v", err)
 	}
 
-	genkitToolsInstance := genkit.Init(ctx, genkit.WithPlugins(&oai.OpenAI{
-		APIKey: "I💙DockerModelRunner",
-		Opts: []option.RequestOption{
-			option.WithBaseURL(engineURL),
-		},
-	}))
-
-	// TODO: create a ToolsIndex structure with its own genkitToolsInstance
-
-	// Define tools
-	diceRollTool := genkit.DefineTool(genkitToolsInstance, "roll_dice", "Roll n dice with n faces each",
+	tools.AddToolToAgent(
+		dungeonMaster,
+		"roll_dice",
+		"Roll n dice with n faces each",
 		func(ctx *ai.ToolContext, input DiceRollInput) (DiceRollResult, error) {
 			return rollDice(input.NumDice, input.NumFaces), nil
 		},
 	)
-
-	characterNameTool := genkit.DefineTool(genkitToolsInstance, "generate_character_name", "Generate a D&D character name for a specific race",
+	tools.AddToolToAgent(
+		dungeonMaster,
+		"generate_character_name",
+		"Generate a D&D character name for a specific race",
 		func(ctx *ai.ToolContext, input CharacterNameInput) (CharacterNameResult, error) {
 			return generateCharacterName(input.Race), nil
 		},
 	)
-
-	// Register tools with the agent
-	dungeonMaster.SetTools([]ai.ToolRef{diceRollTool, characterNameTool})
 
 	response, err := dungeonMaster.RunToolCalls(
 		`
