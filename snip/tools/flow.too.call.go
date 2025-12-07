@@ -16,6 +16,8 @@ func EnableToolCallFlow() ToolsAgentOption {
 	}
 }
 
+// TODO: EnableToolCallFlow(Confirmation) -> QUESTION: How to pass the confirmation function?
+
 func initializeToolCallFlow(toolsAgent *ToolsAgent) {
 
 	// STEP 1: Define tool-calling flow
@@ -101,7 +103,7 @@ func initializeToolCallFlow(toolsAgent *ToolsAgent) {
 
 					// TODO: define is as an otptional callback in the ToolsAgent config or somewhere else
 					// Execute tool with user confirmation
-					execConfirmation := func() {
+					runToolExecutionWithConfirmation := func() {
 						var response string
 						for {
 							fmt.Printf("Do you want to execute tool %q? (y/n/q): ", req.Name)
@@ -177,7 +179,7 @@ func initializeToolCallFlow(toolsAgent *ToolsAgent) {
 						}
 
 					}
-					execConfirmation()
+					runToolExecutionWithConfirmation()
 
 				}
 

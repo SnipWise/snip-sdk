@@ -77,7 +77,7 @@ func main() {
 	fmt.Println("=== Non-streaming Compression ===")
 	fmt.Println()
 
-	compressSpinner := spinner.NewColor("").SetSuffix("compressing...").SetFrames(spinner.FramesPulsingStar)
+	compressSpinner := spinner.NewWithColor("").SetSuffix("compressing...").SetFrames(spinner.FramesPulsingStar)
 	compressSpinner.SetFrameColor(spinner.ColorGreen)
 	compressSpinner.Start()
 

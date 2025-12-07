@@ -35,7 +35,7 @@ func main() {
 		models.ModelConfig{
 			Temperature: 0.0,
 		},
-		tools.EnableToolCallFlow(),
+		tools.EnableAutoToolCallFlow(),
 		tools.WithLogLevel(logger.LevelDebug),
 	)
 	if err != nil {
@@ -59,6 +59,7 @@ func main() {
 		},
 	)
 
+	// TODO: RuntToolCallsWithCallback
 	response, err := dungeonMaster.RunToolCalls(
 		`
 		Roll 3 dices with 6 faces each.

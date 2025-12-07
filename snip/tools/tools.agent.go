@@ -98,21 +98,25 @@ func NewToolsAgent(
 	return toolsAgent, nil
 }
 
-// AddToolToAgent adds a tool to the ToolsAgent's tool index.
-func AddToolToAgent[Input any, Output any](toolsAgent *ToolsAgent, name, description string, fn func(ctx *ai.ToolContext, input Input) (Output, error)) {
+// NOTE: in theory we do not need it, but keeping for consistency
+// AddToolDefinititionToAgent adds a tool with full context to the ToolsAgent's tool index.
+func AddToolDefinititionToAgent[Input any, Output any](toolsAgent *ToolsAgent, name, description string, fn func(ctx *ai.ToolContext, input Input) (Output, error)) {
 	toolRef := genkit.DefineTool(toolsAgent.genKitToolsInstance, name, description, fn)
 	toolsAgent.ToolsIndex = append(toolsAgent.ToolsIndex, toolRef)
 }
 
-// AddToolsToAgent adds multiple tools to the ToolsAgent's tool index.
-func AddToolsToAgent[Input any, Output any](toolsAgent *ToolsAgent, toolsMap map[string]struct {
-	Description string
-	Func        func(ctx *ai.ToolContext, input Input) (Output, error)
-}) {
-	for name, tool := range toolsMap {
-		AddToolToAgent(toolsAgent, name, tool.Description, tool.Func)
+// NOTE: simpler version without context:
+// AddToolToAgent adds a tool to the ToolsAgent's tool index.
+func AddToolToAgent[Input any, Output any](toolsAgent *ToolsAgent, name, description string, fn func(input Input) (Output, error)) {
+	
+	newFunc := func(ctx *ai.ToolContext, input Input) (Output, error) {
+		return fn(input)
 	}
+
+	toolRef := genkit.DefineTool(toolsAgent.genKitToolsInstance, name, description, newFunc)
+	toolsAgent.ToolsIndex = append(toolsAgent.ToolsIndex, toolRef)
 }
+
 
 // RunToolCalls runs the tool-calling flow with the given prompt.
 func (toolsAgent *ToolsAgent) RunToolCalls(prompt string) (ToolCallsResult, error) {

@@ -77,8 +77,8 @@ type ColorSpinner struct {
 	mu          sync.RWMutex // Protects all fields for concurrent access
 }
 
-// NewColor creates a new ColorSpinner with a prefix
-func NewColor(prefix string) *ColorSpinner {
+// NewWithColor creates a new ColorSpinner with a prefix
+func NewWithColor(prefix string) *ColorSpinner {
 	return &ColorSpinner{
 		frames:      FramesBraille,
 		delay:       100 * time.Millisecond,

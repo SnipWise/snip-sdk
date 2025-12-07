@@ -1,17 +1,15 @@
-module 53-talk-to-lucy-decrease-context-size-with-compressor
+module 13-tools-agent
 
 go 1.25.1
 
-replace github.com/snipwise/snip-sdk => ../../
+replace github.com/snipwise/snip-sdk => ../..
 
-require (
-	github.com/firebase/genkit/go v1.2.0 // indirect
-	github.com/snipwise/snip-sdk v0.0.0-00010101000000-000000000000
-)
+require github.com/snipwise/snip-sdk v0.0.0
 
 require (
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect
+	github.com/firebase/genkit/go v1.2.0
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/goccy/go-yaml v1.17.1 // indirect
@@ -20,7 +18,7 @@ require (
 	github.com/invopop/jsonschema v0.13.0 // indirect
 	github.com/mailru/easyjson v0.9.0 // indirect
 	github.com/mbleigh/raymond v0.0.0-20250414171441-6b3a58ab9e0a // indirect
-	github.com/openai/openai-go v1.8.2 // indirect
+	github.com/openai/openai-go v1.12.0 // indirect
 	github.com/tidwall/gjson v1.18.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
