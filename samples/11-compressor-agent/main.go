@@ -7,10 +7,11 @@ import (
 	"strings"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/snipwise/snip-sdk/snip/toolbox/env"
 	"github.com/snipwise/snip-sdk/snip/agents"
-	"github.com/snipwise/snip-sdk/snip/models"
 	"github.com/snipwise/snip-sdk/snip/compressor"
+	"github.com/snipwise/snip-sdk/snip/models"
+	"github.com/snipwise/snip-sdk/snip/toolbox/env"
+	"github.com/snipwise/snip-sdk/snip/ui/spinner"
 )
 
 func main() {
@@ -76,8 +77,15 @@ func main() {
 	fmt.Println("=== Non-streaming Compression ===")
 	fmt.Println()
 
+	compressSpinner := spinner.NewColor("").SetSuffix("compressing...").SetFrames(spinner.FramesPulsingStar)
+	compressSpinner.SetFrameColor(spinner.ColorGreen)
+	compressSpinner.Start()
+
 	compressed, err := compressor.CompressMessages(messages)
 	if err != nil {
+		if compressSpinner.IsRunning() {
+			compressSpinner.Error("Failed to compress context!")
+		}
 		log.Fatalf("Error compressing messages: %v", err)
 	}
 
@@ -97,8 +105,20 @@ func main() {
 	fmt.Println("Watch the compression happen in real-time:")
 	fmt.Println(strings.Repeat("-", 80))
 
+	compressSpinner.SetFrames(spinner.FramesDots)
 	streamCompressed, err := compressor.CompressMessagesStream(messages, func(chunk agents.ChatResponse) error {
-		fmt.Print(chunk.Text)
+		//fmt.Print(chunk.Text)
+
+		text := strings.ReplaceAll(strings.ReplaceAll(chunk.Text, "\n", ""), "\r", "")
+		if len(text) > 20 {
+			text = text[:17] + "..."
+		}
+		compressSpinner.SetSuffix(fmt.Sprintf("%-20s", text))
+
+		if compressSpinner.IsRunning() && chunk.FinishReason == "stop" {
+			compressSpinner.Success("Done compressing!")
+			compressSpinner.Stop()
+		}
 		return nil
 	})
 	if err != nil {

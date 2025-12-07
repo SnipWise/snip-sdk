@@ -5,9 +5,10 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/snipwise/snip-sdk/snip/toolbox/env"
-	"github.com/snipwise/snip-sdk/snip"
+	"github.com/snipwise/snip-sdk/snip/agents"
 	"github.com/snipwise/snip-sdk/snip/rag"
+	"github.com/snipwise/snip-sdk/snip/text"
+	"github.com/snipwise/snip-sdk/snip/toolbox/env"
 )
 
 func main() {
@@ -23,7 +24,7 @@ func main() {
 	var errs []error
 
 	ragAgent01, err := rag.NewRagAgent(ctx,
-		rag.RagAgentConfig{
+		 agents.AgentConfig{
 			Name:      "RAG_Agent_1",
 			ModelID:   firstEmbeddingModelId,
 			EngineURL: engineURL,
@@ -38,7 +39,7 @@ func main() {
 	}
 
 	ragAgent02, err := rag.NewRagAgent(ctx,
-		rag.RagAgentConfig{
+		 agents.AgentConfig{
 			Name:      "RAG_Agent_2",
 			ModelID:   secondEmbeddingModelId,
 			EngineURL: engineURL,
@@ -53,7 +54,7 @@ func main() {
 	}
 
 	ragAgent03, err := rag.NewRagAgent(ctx,
-		rag.RagAgentConfig{
+		agents.AgentConfig{
 			Name:      "RAG_Agent_3",
 			ModelID:   thirdEmbeddingModelId,
 			EngineURL: engineURL,
@@ -88,9 +89,9 @@ func main() {
 			"Dolphins leap out of the ocean",
 			"Bears fish in the river",
 		}
-		var chunks []snip.TextChunk
+		var chunks []text.TextChunk
 		for _, txt := range txtChunks {
-			chunk := snip.TextChunk{
+			chunk := text.TextChunk{
 				Content:  txt,
 				Metadata: map[string]any{"source": "example"},
 			}

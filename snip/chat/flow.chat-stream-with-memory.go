@@ -13,6 +13,7 @@ import (
 )
 
 // EnableChatStreamFlowWithMemory initializes the chat stream flow for the agent
+// with conversational memory support.
 func EnableChatStreamFlowWithMemory() AgentOption {
 	return func(agent *ChatAgent) {
 		initializeChatStreamFlowWithMemory(agent)

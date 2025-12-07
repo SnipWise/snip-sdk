@@ -19,8 +19,11 @@ func main() {
 	//chatModelId := env.GetEnvOrDefault("CHAT_MODEL", "ai/qwen2.5:0.5B-F16")
 	chatModelId := env.GetEnvOrDefault("CHAT_MODEL", "hf.co/menlo/jan-nano-gguf:q4_k_m")
 
-	loadingSpinner := spinner.New("").SetSuffix("loading model...").SetFrames(spinner.FramesPulsingStar)
-	thinkingSpinner := spinner.New("").SetSuffix("thinking...").SetFrames(spinner.FramesDots)
+	loadingSpinner := spinner.NewColor("").SetSuffix("loading model...").SetFrames(spinner.FramesPulsingStar)
+	loadingSpinner.SetSuffixColor(spinner.ColorBold + spinner.BgBlue).SetFrameColor(spinner.ColorYellow)
+
+	thinkingSpinner := spinner.NewColor("").SetSuffix("thinking...").SetFrames(spinner.FramesDots)
+	thinkingSpinner.SetSuffixColor(spinner.ColorPurple).SetFrameColor(spinner.ColorRed)
 
 	agent0, err := chat.NewChatAgent(ctx,
 		agents.AgentConfig{

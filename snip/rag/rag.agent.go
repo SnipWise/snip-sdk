@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/snipwise/snip-sdk/snip"
 	"github.com/snipwise/snip-sdk/snip/agents"
-	"github.com/snipwise/snip-sdk/snip/toolbox/logger"
 	openaihelpers "github.com/snipwise/snip-sdk/snip/openai-helpers"
+	"github.com/snipwise/snip-sdk/snip/text"
+	"github.com/snipwise/snip-sdk/snip/toolbox/logger"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
@@ -41,7 +41,7 @@ func (agent *RagAgent) GetName() string {
 	return agent.Name
 }
 
-func NewRagAgent(ctx context.Context, ragAgentConfig RagAgentConfig, storeConfig StoreConfig, opts ...RagAgentOption) (*RagAgent, error) {
+func NewRagAgent(ctx context.Context, ragAgentConfig agents.AgentConfig, storeConfig StoreConfig, opts ...RagAgentOption) (*RagAgent, error) {
 	oaiPlugin := &oai.OpenAI{
 		APIKey: "I💙DockerModelRunner",
 		Opts: []option.RequestOption{
@@ -133,8 +133,8 @@ func (agent *RagAgent) Kind() agents.AgentKind {
 	return agents.Rag
 }
 
-func (agent *RagAgent) GetInfo() (snip.RagAgentInfo, error) {
-	return snip.RagAgentInfo{
+func (agent *RagAgent) GetInfo() (agents.RagAgentInfo, error) {
+	return agents.RagAgentInfo{
 		Name:               agent.Name,
 		ModelID:            agent.ModelID,
 		EmbeddingDimension: agent.embeddingDimension,
@@ -144,7 +144,7 @@ func (agent *RagAgent) GetInfo() (snip.RagAgentInfo, error) {
 	}, nil
 }
 
-func (agent *RagAgent) AddTextChunksToStore(chunks []snip.TextChunk) (int, error) {
+func (agent *RagAgent) AddTextChunksToStore(chunks []text.TextChunk) (int, error) {
 	docs := []*ai.Document{}
 
 	for idx, chunk := range chunks {

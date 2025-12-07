@@ -16,13 +16,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/snipwise/snip-sdk/snip/toolbox/conversion"
-	"github.com/snipwise/snip-sdk/snip/toolbox/env"
-	"github.com/snipwise/snip-sdk/snip/toolbox/logger"
 	"github.com/snipwise/snip-sdk/snip"
 	"github.com/snipwise/snip-sdk/snip/agents"
 	"github.com/snipwise/snip-sdk/snip/models"
-	"github.com/snipwise/snip-sdk/snip/openai-helpers"
+	openaihelpers "github.com/snipwise/snip-sdk/snip/openai-helpers"
+	"github.com/snipwise/snip-sdk/snip/toolbox/conversion"
+	"github.com/snipwise/snip-sdk/snip/toolbox/env"
+	"github.com/snipwise/snip-sdk/snip/toolbox/logger"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core"
@@ -45,9 +45,8 @@ type ChatAgent struct {
 	chatStreamFlowWithMemory *core.Flow[*agents.ChatRequest, *agents.ChatResponse, agents.ChatResponse]
 	chatFlowWithMemory       *core.Flow[*agents.ChatRequest, *agents.ChatResponse, struct{}]
 
-	chatFlow *core.Flow[*agents.ChatRequest, *agents.ChatResponse, struct{}]
+	chatFlow       *core.Flow[*agents.ChatRequest, *agents.ChatResponse, struct{}]
 	chatStreamFlow *core.Flow[*agents.ChatRequest, *agents.ChatResponse, agents.ChatResponse]
-
 
 	serverConfig *ConfigHTTP
 	httpServer   *http.Server
@@ -62,8 +61,12 @@ type ChatAgent struct {
 	logger logger.Logger
 }
 
-
-func NewChatAgent(ctx context.Context, agentConfig agents.AgentConfig, modelConfig models.ModelConfig, opts ...AgentOption) (*ChatAgent, error) {
+func NewChatAgent(
+	ctx context.Context, 
+	agentConfig agents.AgentConfig, 
+	modelConfig models.ModelConfig, 
+	opts ...AgentOption) (*ChatAgent, error) {
+		
 	oaiPlugin := &oai.OpenAI{
 		APIKey: "I💙DockerModelRunner",
 		Opts: []option.RequestOption{
@@ -110,7 +113,7 @@ func (agent *ChatAgent) GetMessages() []*ai.Message {
 	return agent.Messages
 }
 
-func (agent *ChatAgent)GetCurrentContextSize() int {
+func (agent *ChatAgent) GetCurrentContextSize() int {
 	totalContextSize := len(agent.SystemInstructions)
 	for _, msg := range agent.Messages {
 		for _, content := range msg.Content {
@@ -120,17 +123,17 @@ func (agent *ChatAgent)GetCurrentContextSize() int {
 	return totalContextSize
 }
 
-func (agent *ChatAgent)Kind() agents.AgentKind {
-	return agents.Basic
+func (agent *ChatAgent) Kind() agents.AgentKind {
+	return agents.Chat
 }
 
-func (agent *ChatAgent)AddSystemMessage(context string) error {
+func (agent *ChatAgent) AddSystemMessage(context string) error {
 	// Add a system message to the conversation history
 	agent.Messages = append(agent.Messages, ai.NewSystemTextMessage(strings.TrimSpace(context)))
 	return nil
 }
 
-func (agent *ChatAgent)ReplaceMessagesWith(messages []*ai.Message) error {
+func (agent *ChatAgent) ReplaceMessagesWith(messages []*ai.Message) error {
 	// Replace the entire conversation history with new messages
 	if messages == nil {
 		return fmt.Errorf("messages cannot be nil")
@@ -139,7 +142,7 @@ func (agent *ChatAgent)ReplaceMessagesWith(messages []*ai.Message) error {
 	return nil
 }
 
-func (agent *ChatAgent)ReplaceMessagesWithSystemMessages(systemMessages []string) error {
+func (agent *ChatAgent) ReplaceMessagesWithSystemMessages(systemMessages []string) error {
 	// Replace the entire conversation history with system messages
 	if systemMessages == nil {
 		return fmt.Errorf("systemMessages cannot be nil")
@@ -155,7 +158,7 @@ func (agent *ChatAgent)ReplaceMessagesWithSystemMessages(systemMessages []string
 	return nil
 }
 
-func (agent *ChatAgent)GetInfo() (agents.AgentInfo, error) {
+func (agent *ChatAgent) GetInfo() (agents.AgentInfo, error) {
 	return agents.AgentInfo{
 		Name:    agent.Name,
 		Config:  agent.Config,
@@ -163,9 +166,8 @@ func (agent *ChatAgent)GetInfo() (agents.AgentInfo, error) {
 	}, nil
 }
 
-
 // IMPORTANT: this function uses the chat flow with memory
-func (agent *ChatAgent)AskWithMemory(question string) (agents.ChatResponse, error) {
+func (agent *ChatAgent) AskWithMemory(question string) (agents.ChatResponse, error) {
 	if agent.chatFlowWithMemory == nil {
 		return agents.ChatResponse{}, fmt.Errorf("chat flow is not initialized")
 	}
@@ -178,8 +180,9 @@ func (agent *ChatAgent)AskWithMemory(question string) (agents.ChatResponse, erro
 	return *resp, nil
 
 }
+
 // IMPORTANT: this function uses the chat stream flow with memory
-func (agent *ChatAgent)AskStreamWithMemory(question string, callback func(agents.ChatResponse) error) (agents.ChatResponse, error) {
+func (agent *ChatAgent) AskStreamWithMemory(question string, callback func(agents.ChatResponse) error) (agents.ChatResponse, error) {
 	if agent.chatStreamFlowWithMemory == nil {
 		return agents.ChatResponse{}, fmt.Errorf("chat stream flow is not initialized")
 	}
@@ -218,7 +221,7 @@ func (agent *ChatAgent)AskStreamWithMemory(question string, callback func(agents
 }
 
 // IMPORTANT: this function uses the chat flow WITHOUT memory
-func (agent *ChatAgent)Ask(question string) (agents.ChatResponse, error) {
+func (agent *ChatAgent) Ask(question string) (agents.ChatResponse, error) {
 	if agent.chatFlow == nil {
 		return agents.ChatResponse{}, fmt.Errorf("chat flow is not initialized")
 	}
@@ -232,7 +235,7 @@ func (agent *ChatAgent)Ask(question string) (agents.ChatResponse, error) {
 }
 
 // IMPORTANT: this function uses the chat stream flow WITHOUT memory
-func (agent *ChatAgent)AskStream(question string, callback func(agents.ChatResponse) error) (agents.ChatResponse, error) {
+func (agent *ChatAgent) AskStream(question string, callback func(agents.ChatResponse) error) (agents.ChatResponse, error) {
 	if agent.chatStreamFlow == nil {
 		return agents.ChatResponse{}, fmt.Errorf("chat stream flow is not initialized")
 	}
@@ -270,12 +273,10 @@ func (agent *ChatAgent)AskStream(question string, callback func(agents.ChatRespo
 	return finalResponse, nil
 }
 
-
-
 // Serve starts the HTTP server with the configured endpoints for the agent's flows
 // The server automatically handles SIGINT (Ctrl+C) and SIGTERM signals for graceful shutdown
 // Use the Stop() method to manually shutdown the server
-func (agent *ChatAgent)Serve() error {
+func (agent *ChatAgent) Serve() error {
 	if agent.serverConfig == nil {
 		return fmt.Errorf("server configuration is not set, use EnableServer option")
 	}
@@ -479,7 +480,7 @@ func (agent *ChatAgent)Serve() error {
 }
 
 // Stop gracefully shuts down the HTTP server with a 5-second timeout
-func (agent *ChatAgent)Stop() error {
+func (agent *ChatAgent) Stop() error {
 	if agent.httpServer == nil {
 		return fmt.Errorf("server is not running")
 	}
@@ -501,7 +502,7 @@ func (agent *ChatAgent)Stop() error {
 // Returns an error if no compressor agent is configured
 // The compression result is returned as a ChatResponse
 // After compression, the agent's messages are replaced with a single system message containing the compressed context
-func (agent *ChatAgent)CompressContext() (agents.ChatResponse, error) {
+func (agent *ChatAgent) CompressContext() (agents.ChatResponse, error) {
 	if agent.compressorAgent == nil {
 		return agents.ChatResponse{}, fmt.Errorf("no compressor agent configured, use EnableContextCompression option")
 	}
@@ -527,7 +528,7 @@ func (agent *ChatAgent)CompressContext() (agents.ChatResponse, error) {
 // The callback function is called for each streamed chunk
 // The final compression result is returned as a ChatResponse
 // After compression, the agent's messages are replaced with a single system message containing the compressed context
-func (agent *ChatAgent)CompressContextStream(callback func(agents.ChatResponse) error) (agents.ChatResponse, error) {
+func (agent *ChatAgent) CompressContextStream(callback func(agents.ChatResponse) error) (agents.ChatResponse, error) {
 	if agent.compressorAgent == nil {
 		return agents.ChatResponse{}, fmt.Errorf("no compressor agent configured, use EnableContextCompression option")
 	}

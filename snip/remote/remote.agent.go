@@ -198,11 +198,9 @@ func (agent *RemoteAgent) GetCurrentContextSize() int {
 
 	// Get messages from remote server
 	messages := agent.GetMessages()
-	if messages != nil {
-		for _, msg := range messages {
-			for _, content := range msg.Content {
-				totalContextSize += len(content.Text)
-			}
+	for _, msg := range messages {
+		for _, content := range msg.Content {
+			totalContextSize += len(content.Text)
 		}
 	}
 

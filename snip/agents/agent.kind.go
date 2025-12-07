@@ -5,8 +5,9 @@ type AgentKind string
 
 const (
 	Basic  AgentKind = "Basic"
+	Chat  AgentKind = "Chat"
 	Remote AgentKind = "Remote"
-	Tool  AgentKind = "Tool"
+	Tool  AgentKind = "Tools"
 	Intent AgentKind = "Intent"
 	Rag    AgentKind = "Rag"
 	Compressor AgentKind = "Compressor"

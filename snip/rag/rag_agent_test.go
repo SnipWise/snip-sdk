@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/snipwise/snip-sdk/snip"
 	"github.com/snipwise/snip-sdk/snip/agents"
+	"github.com/snipwise/snip-sdk/snip/text"
 )
 
 // ============================================================================
@@ -127,13 +127,13 @@ func TestRagAgentGetInfo(t *testing.T) {
 func TestRagAgentConfigValidate(t *testing.T) {
 	tests := []struct {
 		name        string
-		config      RagAgentConfig
+		config       agents.AgentConfig
 		expectError bool
 		errorMsg    string
 	}{
 		{
 			name: "valid config",
-			config: RagAgentConfig{
+			config:  agents.AgentConfig{
 				Name:      "test-agent",
 				ModelID:   "test-model",
 				EngineURL: "http://localhost:8080",
@@ -142,7 +142,7 @@ func TestRagAgentConfigValidate(t *testing.T) {
 		},
 		{
 			name: "missing name",
-			config: RagAgentConfig{
+			config:  agents.AgentConfig{
 				Name:      "",
 				ModelID:   "test-model",
 				EngineURL: "http://localhost:8080",
@@ -152,7 +152,7 @@ func TestRagAgentConfigValidate(t *testing.T) {
 		},
 		{
 			name: "missing model ID",
-			config: RagAgentConfig{
+			config:  agents.AgentConfig{
 				Name:      "test-agent",
 				ModelID:   "",
 				EngineURL: "http://localhost:8080",
@@ -162,7 +162,7 @@ func TestRagAgentConfigValidate(t *testing.T) {
 		},
 		{
 			name: "missing engine URL",
-			config: RagAgentConfig{
+			config:  agents.AgentConfig{
 				Name:      "test-agent",
 				ModelID:   "test-model",
 				EngineURL: "",
@@ -197,7 +197,7 @@ func TestRagAgentConfigValidate(t *testing.T) {
 
 func TestTextChunk(t *testing.T) {
 	t.Run("basic chunk", func(t *testing.T) {
-		chunk := snip.TextChunk{
+		chunk := text.TextChunk{
 			Content:  "This is a test chunk",
 			Metadata: nil,
 		}
@@ -212,7 +212,7 @@ func TestTextChunk(t *testing.T) {
 	})
 
 	t.Run("chunk with metadata", func(t *testing.T) {
-		chunk := snip.TextChunk{
+		chunk := text.TextChunk{
 			Content: "Chunk with metadata",
 			Metadata: map[string]any{
 				"source": "test.txt",
@@ -267,7 +267,7 @@ func TestStoreConfig(t *testing.T) {
 
 func TestRagAgentInfo(t *testing.T) {
 	t.Run("complete info", func(t *testing.T) {
-		info := snip.RagAgentInfo{
+		info := agents.RagAgentInfo{
 			Name:               "test-rag-agent",
 			ModelID:            "embedding-model",
 			EmbeddingDimension: 768,
@@ -319,7 +319,7 @@ func TestNewRagAgentIntegration(t *testing.T) {
 
 	ctx := context.Background()
 
-	config := RagAgentConfig{
+	config := agents.AgentConfig{
 		Name:      "integration-test-agent",
 		ModelID:   "ai/mxbai-embed-large", // Common embedding model
 		EngineURL: "http://localhost:12434/engines/llama.cpp/v1",
@@ -374,7 +374,7 @@ func TestRagAgentAddTextChunksIntegration(t *testing.T) {
 
 	ctx := context.Background()
 
-	config := RagAgentConfig{
+	config := agents.AgentConfig{
 		Name:      "chunks-test-agent",
 		ModelID:   "ai/mxbai-embed-large",
 		EngineURL: "http://localhost:12434/engines/llama.cpp/v1",
@@ -391,7 +391,7 @@ func TestRagAgentAddTextChunksIntegration(t *testing.T) {
 		return
 	}
 
-	chunks := []snip.TextChunk{
+	chunks := []text.TextChunk{
 		{
 			Content:  "The quick brown fox jumps over the lazy dog",
 			Metadata: map[string]any{"source": "test1.txt"},
@@ -430,7 +430,7 @@ func TestRagAgentSearchSimilaritiesIntegration(t *testing.T) {
 
 	ctx := context.Background()
 
-	config := RagAgentConfig{
+	config := agents.AgentConfig{
 		Name:      "search-test-agent",
 		ModelID:   "ai/mxbai-embed-large",
 		EngineURL: "http://localhost:12434/engines/llama.cpp/v1",
@@ -448,7 +448,7 @@ func TestRagAgentSearchSimilaritiesIntegration(t *testing.T) {
 	}
 
 	// Add test documents
-	chunks := []snip.TextChunk{
+	chunks := []text.TextChunk{
 		{
 			Content:  "Dolphins swim in the ocean",
 			Metadata: map[string]any{"category": "marine"},
