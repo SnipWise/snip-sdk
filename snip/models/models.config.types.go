@@ -1,6 +1,9 @@
 package models
 
-import "github.com/openai/openai-go"
+import (
+	"github.com/openai/openai-go"
+	"github.com/openai/openai-go/shared"
+)
 
 // ModelConfig represents the configuration for chat completion
 type ModelConfig struct {
@@ -32,6 +35,15 @@ type ModelConfig struct {
 	// Seed enables deterministic sampling when set.
 	// If specified, the system will make a best effort to sample deterministically for repeated requests with the same seed.
 	Seed *int64
+
+	// ReasoningEffort controls the reasoning effort for reasoning models.
+	// Valid values: "low", "medium", "high". Only applicable to reasoning models like o1.
+	ReasoningEffort string
+
+	// ParallelToolCalls enables parallel function calling during tool use.
+	// When true, the model can call multiple tools simultaneously.
+	// When false, tools are called sequentially.
+	ParallelToolCalls *bool
 
 	// LogitBias modifies the likelihood of specified tokens appearing in the completion.
 	// Maps token IDs to bias values from -100 to 100. Values of -100 ban the token, while 100 strongly increases likelihood.
@@ -71,6 +83,12 @@ func (c ModelConfig) ToOpenAIParams() *openai.ChatCompletionNewParams {
 	}
 	if c.Seed != nil {
 		params.Seed = openai.Int(*c.Seed)
+	}
+	if c.ReasoningEffort != "" {
+		params.ReasoningEffort = shared.ReasoningEffort(c.ReasoningEffort)
+	}
+	if c.ParallelToolCalls != nil {
+		params.ParallelToolCalls = openai.Bool(*c.ParallelToolCalls)
 	}
 	// if len(c.LogitBias) > 0 {
 	// 	params.LogitBias = c.LogitBias

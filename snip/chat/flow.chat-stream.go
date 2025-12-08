@@ -47,18 +47,29 @@ func initializeChatStreamFlow(agent *ChatAgent) {
 				ai.WithSystem(agent.SystemInstructions),
 				ai.WithPrompt(input.UserMessage),
 				ai.WithConfig(agent.Config.ToOpenAIParams()),
-				// ai.WithMessages(
-				// 	agent.Messages...,
-				// ),
+				ai.WithMessages(
+					agent.Messages...,
+				),
 				ai.WithStreaming(func(ctx context.Context, chunk *ai.ModelResponseChunk) error {
+					// QUESTION: how to get the reasoning part in streaming?
+
 					// Check if the context has been cancelled
 					select {
 					case <-streamCtx.Done():
 						return streamCtx.Err()
 					default:
+
+						// for _, part := range chunk.Content {
+						// 	if part.IsReasoning() {
+						// 		fmt.Println("🧠 Reasoning chunk:", part.Text)
+						// 	}
+						// }
+
 						// Send ChatResponse with the chunk text
 						return callback(ctx, agents.ChatResponse{
-							Text: chunk.Text(),
+							Text:    chunk.Text(),
+							Content: chunk.Content,
+							Role:    chunk.Role,
 						})
 					}
 				}),
@@ -101,9 +112,10 @@ func initializeChatStreamFlow(agent *ChatAgent) {
 			agent.streamCtx = nil
 
 			return &agents.ChatResponse{
-				Text:          resp.Text(),
-				FinishReason:  string(resp.FinishReason),
-				FinishMessage: resp.FinishMessage,
+				Text:             resp.Text(),
+				FinishReason:     string(resp.FinishReason),
+				FinishMessage:    resp.FinishMessage,
+				ReasoningContent: resp.Reasoning(),
 			}, nil
 		})
 	agent.chatStreamFlow = chatStreamFlow

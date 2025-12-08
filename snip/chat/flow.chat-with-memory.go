@@ -45,9 +45,12 @@ func initializeChatFlowWithMemory(agent *ChatAgent) {
 			displayConversationHistory(agent)
 
 			return &agents.ChatResponse{
-				Text:          resp.Text(),
-				FinishReason:  string(resp.FinishReason),
-				FinishMessage: resp.FinishMessage,
+				Text:             resp.Text(),
+				Content:          resp.Message.Content,
+				Role:             resp.Message.Role,
+				FinishReason:     string(resp.FinishReason),
+				FinishMessage:    resp.FinishMessage,
+				ReasoningContent: resp.Reasoning(),
 			}, nil
 		})
 

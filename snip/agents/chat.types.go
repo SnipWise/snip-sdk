@@ -1,5 +1,6 @@
 package agents
 
+import "github.com/firebase/genkit/go/ai"
 
 type ChatRequest struct {
 	UserMessage string `json:"message"`
@@ -7,9 +8,12 @@ type ChatRequest struct {
 
 // Structure for final flow output
 type ChatResponse struct {
-	Text string `json:"response"`
-	FinishReason string `json:"finish_reason,omitempty"`
+	Text          string     `json:"response"`
+	Content       []*ai.Part `json:"content,omitempty"`
+	Role          ai.Role   `json:"role,omitempty"`
+	FinishReason  string `json:"finish_reason,omitempty"`
 	FinishMessage string `json:"finish_message,omitempty"`
+	ReasoningContent string `json:"reasoning_content,omitempty"`
 }
 
 func (chatResponse *ChatResponse) IsEmpty() bool {

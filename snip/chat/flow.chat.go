@@ -26,18 +26,21 @@ func initializeChatFlow(agent *ChatAgent) {
 				ai.WithSystem(agent.SystemInstructions),
 				ai.WithPrompt(input.UserMessage),
 				ai.WithConfig(agent.Config.ToOpenAIParams()),
-				// ai.WithMessages(
-				// 	agent.Messages...,
-				// ),
+				ai.WithMessages(
+					agent.Messages...,
+				),
 			)
 			if err != nil {
 				return nil, err
 			}
 
 			return &agents.ChatResponse{
-				Text:          resp.Text(),
-				FinishReason:  string(resp.FinishReason),
-				FinishMessage: resp.FinishMessage,
+				Text:             resp.Text(),
+				Content:          resp.Message.Content,
+				Role:             resp.Message.Role,
+				FinishReason:     string(resp.FinishReason),
+				FinishMessage:    resp.FinishMessage,
+				ReasoningContent: resp.Reasoning(),
 			}, nil
 		})
 
