@@ -12,7 +12,7 @@ import (
 )
 
 // EnableChatStreamFlowWithMemory initializes the chat stream flow for the agent
-func EnableChatStreamFlow() AgentOption {
+func EnableChatStreamFlow() ChatAgentOption {
 	return func(agent *ChatAgent) {
 		initializeChatStreamFlow(agent)
 	}
@@ -20,7 +20,7 @@ func EnableChatStreamFlow() AgentOption {
 
 func initializeChatStreamFlow(agent *ChatAgent) {
 
-	chatStreamFlow := genkit.DefineStreamingFlow(agent.genKitInstance, agent.Name+"-chat-stream-flow-with-memory",
+	chatStreamFlow := genkit.DefineStreamingFlow(agent.genKitInstance, agent.Name+"-chat-stream-flow",
 		func(ctx context.Context, input *agents.ChatRequest, callback core.StreamCallback[agents.ChatResponse]) (*agents.ChatResponse, error) {
 
 			// Create a cancellable context for this streaming request

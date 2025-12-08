@@ -5,7 +5,7 @@ import (
 	"log"
 
 	"github.com/snipwise/snip-sdk/snip/agents"
-	"github.com/snipwise/snip-sdk/snip/chat"
+	"github.com/snipwise/snip-sdk/snip/chatserver"
 	"github.com/snipwise/snip-sdk/snip/models"
 	"github.com/snipwise/snip-sdk/snip/toolbox/env"
 	"github.com/snipwise/snip-sdk/snip/toolbox/logger"
@@ -17,7 +17,7 @@ func main() {
 	chatModelId := env.GetEnvOrDefault("CHAT_MODEL", "hf.co/menlo/jan-nano-gguf:q4_k_m")
 
 	// Create an agent with both chat flows enabled and HTTP server configuration
-	agent, err := chat.NewChatAgent(ctx,
+	agent, err := chatserver.NewChatAgentServer(ctx,
 		agents.AgentConfig{
 			Name:               "HTTP Agent",
 			SystemInstructions: "You are a helpful assistant.",
@@ -28,9 +28,7 @@ func main() {
 			Temperature: 0.5,
 			TopP:        0.9,
 		},
-		chat.EnableChatFlowWithMemory(),
-		chat.EnableChatStreamFlowWithMemory(),
-		chat.EnableServer(chat.ConfigHTTP{
+		chatserver.EnableServer(chatserver.ConfigHTTP{
 			Address:            "0.0.0.0:9100",
 			ChatFlowPath:       "/api/chat",
 			ChatStreamFlowPath: "/api/chat-stream",
@@ -38,7 +36,7 @@ func main() {
 			ShutdownPath: "/server/shutdown", // Disable shutdown endpoint
 
 		}),
-		chat.WithLogLevel(logger.LevelDebug), // chat.WithVerbose(true)
+		chatserver.WithLogLevel(logger.LevelDebug), // chat.WithVerbose(true)
 	)
 	if err != nil {
 		log.Fatalf("Error creating agent: %v", err)

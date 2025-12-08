@@ -1,4 +1,4 @@
-module 51-talk-to-lucy-decrease-contexr-size
+module 62-chat-server-stream-completion
 
 go 1.25.1
 
@@ -9,11 +9,10 @@ require (
 	github.com/snipwise/snip-sdk v0.0.0
 )
 
-require github.com/firebase/genkit/go v1.2.0
-
 require (
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect
+	github.com/firebase/genkit/go v1.2.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/goccy/go-yaml v1.19.0 // indirect

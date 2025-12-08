@@ -1,12 +1,14 @@
 package snip
 
-import "github.com/snipwise/snip-sdk/snip/agents"
-
 import (
+	"context"
+
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
+	"github.com/snipwise/snip-sdk/snip/agents"
 )
 
-type AIAgent interface {
+type AIChatAgent interface {
 	// Methods with memory management (conversation history is maintained)
 	AskWithMemory(question string) (agents.ChatResponse, error)
 	AskStreamWithMemory(question string, callback func(agents.ChatResponse) error) (agents.ChatResponse, error)
@@ -29,20 +31,12 @@ type AIAgent interface {
 	AddSystemMessage(context string) error
 
 	// Context compression methods (require EnableContextCompression option)
-	CompressContext() (agents.ChatResponse, error)
-	CompressContextStream(callback func(agents.ChatResponse) error) (agents.ChatResponse, error)
+	//CompressContext() (agents.ChatResponse, error)
+	//CompressContextStream(callback func(agents.ChatResponse) error) (agents.ChatResponse, error)
+
+	GetChatFlowWithMemory() *core.Flow[*agents.ChatRequest, *agents.ChatResponse, struct{}]
+	GetChatStreamFlowWithMemory() *core.Flow[*agents.ChatRequest, *agents.ChatResponse, agents.ChatResponse]
+
+	GetStreamCancel() context.CancelFunc
 }
 
-// TODO: add helpers to handle the messages
-
-// TODO:
-// type IntentTraits interface {
-// 	// AIAgent
-// 	// DetermineIntent(question string) (string, error)
-// }
-
-// TODO:
-// type RagTraits interface {
-// 	// AIAgent
-// 	// RetrieveRelevantDocuments(question string) ([]Document, error)
-// }

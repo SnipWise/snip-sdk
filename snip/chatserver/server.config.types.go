@@ -1,4 +1,4 @@
-package chat
+package chatserver
 
 import "net/http"
 

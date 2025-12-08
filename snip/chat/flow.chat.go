@@ -10,7 +10,7 @@ import (
 )
 
 // EnableChatFlowWithMemory initializes the chat flow for the agent
-func EnableChatFlow() AgentOption {
+func EnableChatFlow() ChatAgentOption {
 	return func(agent *ChatAgent) {
 		initializeChatFlow(agent)
 	}

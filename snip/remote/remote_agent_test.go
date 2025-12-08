@@ -9,7 +9,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/snipwise/snip-sdk/snip/agents"
-	"github.com/snipwise/snip-sdk/snip/chat"
+	"github.com/snipwise/snip-sdk/snip/chatserver"
 	"github.com/snipwise/snip-sdk/snip/models"
 )
 
@@ -19,7 +19,7 @@ import (
 
 func TestNewRemoteAgent(t *testing.T) {
 	t.Run("with all custom paths", func(t *testing.T) {
-		config := chat.ConfigHTTP{
+		config := chatserver.ConfigHTTP{
 			Address:            "localhost:8080",
 			ChatFlowPath:       "/custom/chat",
 			ChatStreamFlowPath: "/custom/stream",
@@ -61,7 +61,7 @@ func TestNewRemoteAgent(t *testing.T) {
 	})
 
 	t.Run("with default paths", func(t *testing.T) {
-		config := chat.ConfigHTTP{
+		config := chatserver.ConfigHTTP{
 			Address:            "localhost:9000",
 			ChatFlowPath:       "/api/chat",
 			ChatStreamFlowPath: "/api/chat-stream",
@@ -72,17 +72,17 @@ func TestNewRemoteAgent(t *testing.T) {
 
 		agent := NewRemoteAgent("default-agent", config)
 
-		expectedInfoEndpoint := "http://localhost:9000" + chat.DefaultInformationPath
+		expectedInfoEndpoint := "http://localhost:9000" + chatserver.DefaultInformationPath
 		if agent.InformationEndpoint != expectedInfoEndpoint {
 			t.Errorf("InformationEndpoint = %q, want %q", agent.InformationEndpoint, expectedInfoEndpoint)
 		}
 
-		expectedContextEndpoint := "http://localhost:9000" + chat.DefaultAddSystemMessagePath
+		expectedContextEndpoint := "http://localhost:9000" + chatserver.DefaultAddSystemMessagePath
 		if agent.AddContextEndpoint != expectedContextEndpoint {
 			t.Errorf("AddContextEndpoint = %q, want %q", agent.AddContextEndpoint, expectedContextEndpoint)
 		}
 
-		expectedMessagesEndpoint := "http://localhost:9000" + chat.DefaultGetMessagesPath
+		expectedMessagesEndpoint := "http://localhost:9000" + chatserver.DefaultGetMessagesPath
 		if agent.GetMessagesEndpoint != expectedMessagesEndpoint {
 			t.Errorf("GetMessagesEndpoint = %q, want %q", agent.GetMessagesEndpoint, expectedMessagesEndpoint)
 		}

@@ -4,18 +4,18 @@ import (
 	"github.com/snipwise/snip-sdk/snip/toolbox/logger"
 )
 
-// AgentOption defines a functional option for configuring LocalAIAgent
-type AgentOption func(*ChatAgent)
+// AgentServerOption defines a functional option for configuring the agent
+type ChatAgentOption func(*ChatAgent)
 
 // WithLogger sets a custom logger for the agent
-func WithLogger(log logger.Logger) AgentOption {
+func WithLogger(log logger.Logger) ChatAgentOption {
 	return func(a *ChatAgent) {
 		a.logger = log
 	}
 }
 
 // WithVerbose enables verbose logging (INFO level) with agent name prefix
-func WithVerbose(verbose bool) AgentOption {
+func WithVerbose(verbose bool) ChatAgentOption {
 	return func(a *ChatAgent) {
 		if verbose {
 			a.logger = logger.NewConsoleLoggerWithPrefix(logger.LevelInfo, a.Name)
@@ -26,7 +26,7 @@ func WithVerbose(verbose bool) AgentOption {
 }
 
 // WithLogLevel sets the log level for the agent
-func WithLogLevel(level logger.LogLevel) AgentOption {
+func WithLogLevel(level logger.LogLevel) ChatAgentOption {
 	return func(a *ChatAgent) {
 		a.logger = logger.NewConsoleLoggerWithPrefix(level, a.Name)
 	}

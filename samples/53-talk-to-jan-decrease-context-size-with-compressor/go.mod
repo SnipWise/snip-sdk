@@ -1,4 +1,4 @@
-module 53-talk-to-lucy-decrease-context-size-with-compressor
+module 53-talk-to-jan-decrease-context-size-with-compressor
 
 go 1.25.1
 

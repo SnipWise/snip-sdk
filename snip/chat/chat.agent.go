@@ -7,16 +7,9 @@ the conversation history is stored in memory
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"net/http"
-	"os"
-	"os/signal"
 	"strings"
-	"syscall"
-	"time"
 
-	"github.com/snipwise/snip-sdk/snip"
 	"github.com/snipwise/snip-sdk/snip/agents"
 	"github.com/snipwise/snip-sdk/snip/models"
 	openaihelpers "github.com/snipwise/snip-sdk/snip/openai-helpers"
@@ -48,25 +41,19 @@ type ChatAgent struct {
 	chatFlow       *core.Flow[*agents.ChatRequest, *agents.ChatResponse, struct{}]
 	chatStreamFlow *core.Flow[*agents.ChatRequest, *agents.ChatResponse, agents.ChatResponse]
 
-	serverConfig *ConfigHTTP
-	httpServer   *http.Server
-	serverCancel context.CancelFunc
-
 	// streamCancel cancels the current streaming completion
 	streamCancel context.CancelFunc
 	streamCtx    context.Context
-
-	compressorAgent snip.AICompressorAgent
 
 	logger logger.Logger
 }
 
 func NewChatAgent(
-	ctx context.Context, 
-	agentConfig agents.AgentConfig, 
-	modelConfig models.ModelConfig, 
-	opts ...AgentOption) (*ChatAgent, error) {
-		
+	ctx context.Context,
+	agentConfig agents.AgentConfig,
+	modelConfig models.ModelConfig,
+	opts ...ChatAgentOption) (*ChatAgent, error) {
+
 	oaiPlugin := &oai.OpenAI{
 		APIKey: "I💙DockerModelRunner",
 		Opts: []option.RequestOption{
@@ -105,8 +92,16 @@ func NewChatAgent(
 
 }
 
+func (agent *ChatAgent) GetStreamCancel() context.CancelFunc {
+	return agent.streamCancel
+}
+
 func (agent *ChatAgent) GetName() string {
 	return agent.Name
+}
+
+func (agent *ChatAgent) Kind() agents.AgentKind {
+	return agents.Chat
 }
 
 func (agent *ChatAgent) GetMessages() []*ai.Message {
@@ -121,10 +116,6 @@ func (agent *ChatAgent) GetCurrentContextSize() int {
 		}
 	}
 	return totalContextSize
-}
-
-func (agent *ChatAgent) Kind() agents.AgentKind {
-	return agents.Chat
 }
 
 func (agent *ChatAgent) AddSystemMessage(context string) error {
@@ -273,280 +264,12 @@ func (agent *ChatAgent) AskStream(question string, callback func(agents.ChatResp
 	return finalResponse, nil
 }
 
-// Serve starts the HTTP server with the configured endpoints for the agent's flows
-// The server automatically handles SIGINT (Ctrl+C) and SIGTERM signals for graceful shutdown
-// Use the Stop() method to manually shutdown the server
-func (agent *ChatAgent) Serve() error {
-	if agent.serverConfig == nil {
-		return fmt.Errorf("server configuration is not set, use EnableServer option")
-	}
-
-	mux := http.NewServeMux()
-
-	// Set default values for paths if not provided
-	if agent.serverConfig.ChatFlowPath == "" {
-		agent.serverConfig.ChatFlowPath = DefaultChatFlowPath
-	}
-	if agent.serverConfig.ChatStreamFlowPath == "" {
-		agent.serverConfig.ChatStreamFlowPath = DefaultChatStreamFlowPath
-	}
-	if agent.serverConfig.InformationPath == "" {
-		agent.serverConfig.InformationPath = DefaultInformationPath
-	}
-	if agent.serverConfig.ShutdownPath == "" {
-		agent.serverConfig.ShutdownPath = "-"
-	}
-	if agent.serverConfig.CancelStreamPath == "" {
-		agent.serverConfig.CancelStreamPath = DefaultCancelStreamPath
-	}
-	if agent.serverConfig.AddContextPath == "" {
-		agent.serverConfig.AddContextPath = DefaultAddSystemMessagePath
-	}
-	if agent.serverConfig.HealthcheckPath == "" {
-		agent.serverConfig.HealthcheckPath = DefaultHealthcheckPath
-	}
-	if agent.serverConfig.GetMessagesPath == "" {
-		agent.serverConfig.GetMessagesPath = DefaultGetMessagesPath
-	}
-
-	// Register healthcheck endpoint
-	healthcheckPath := agent.serverConfig.HealthcheckPath
-	mux.HandleFunc("GET "+healthcheckPath, func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"ok"}`))
-	})
-	agent.logger.Info("Registered endpoint: GET %s", healthcheckPath)
-
-	// Register agent information endpoint
-	informationPath := agent.serverConfig.InformationPath
-	mux.HandleFunc("GET "+informationPath, func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		info := agents.AgentInfo{
-			Name:    agent.Name,
-			ModelID: agent.ModelID,
-			Config:  agent.Config,
-		}
-		if err := json.NewEncoder(w).Encode(info); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-	})
-	agent.logger.Info("Registered endpoint: GET %s", informationPath)
-
-	// IMPORTANT: with memory flows
-	// Register chat flow endpoint if available
-	if agent.chatFlowWithMemory != nil && agent.serverConfig.ChatFlowHandler != nil {
-		chatFlowPath := agent.serverConfig.ChatFlowPath
-		mux.HandleFunc("POST "+chatFlowPath, agent.serverConfig.ChatFlowHandler)
-		agent.logger.Info("Registered endpoint: POST %s", chatFlowPath)
-	}
-	// IMPORTANT: with memory flows
-	// Register chat stream flow endpoint if available
-	if agent.chatStreamFlowWithMemory != nil && agent.serverConfig.ChatStreamFlowHandler != nil {
-		chatStreamFlowPath := agent.serverConfig.ChatStreamFlowPath
-		mux.HandleFunc("POST "+chatStreamFlowPath, agent.serverConfig.ChatStreamFlowHandler)
-		agent.logger.Info("Registered endpoint: POST %s", chatStreamFlowPath)
-	}
-
-	// Create server context with cancel
-	serverCtx, cancel := context.WithCancel(agent.ctx)
-	agent.serverCancel = cancel
-
-	// Register shutdown endpoint if enabled
-	shutdownPath := agent.serverConfig.ShutdownPath
-	if shutdownPath != "-" {
-		if shutdownPath == "" {
-			shutdownPath = DefaultShutdownPath
-		}
-		mux.HandleFunc("POST "+shutdownPath, func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"status":"shutting down"}`))
-
-			agent.logger.Info("Shutdown requested via HTTP endpoint")
-
-			// Trigger shutdown asynchronously to allow response to be sent
-			go func() {
-				time.Sleep(100 * time.Millisecond)
-				cancel()
-			}()
-		})
-		agent.logger.Info("Registered endpoint: POST %s", shutdownPath)
-	}
-
-	// Register cancel stream endpoint
-	cancelStreamPath := agent.serverConfig.CancelStreamPath
-	if cancelStreamPath != "" {
-		mux.HandleFunc("POST "+cancelStreamPath, func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-
-			if agent.streamCancel != nil {
-				agent.streamCancel()
-				agent.logger.Info("Streaming completion cancelled via HTTP endpoint")
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(`{"status":"stream cancelled"}`))
-			} else {
-				agent.logger.Info("No active stream to cancel")
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(`{"status":"no active stream"}`))
-			}
-		})
-		agent.logger.Info("Registered endpoint: POST %s", cancelStreamPath)
-	}
-
-	// Register add context endpoint
-	addContextPath := agent.serverConfig.AddContextPath
-	if addContextPath != "" {
-		mux.HandleFunc("POST "+addContextPath, func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-
-			// Parse request body
-			var req struct {
-				Context string `json:"context"`
-			}
-			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				agent.logger.Error("Error decoding add context request: %v", err)
-				w.WriteHeader(http.StatusBadRequest)
-				w.Write([]byte(`{"status":"error","message":"invalid request body"}`))
-				return
-			}
-
-			// Add context to messages
-			if err := agent.AddSystemMessage(req.Context); err != nil {
-				agent.logger.Error("Error adding context to messages: %v", err)
-				w.WriteHeader(http.StatusInternalServerError)
-				w.Write([]byte(`{"status":"error","message":"failed to add context"}`))
-				return
-			}
-
-			agent.logger.Info("Context added to messages via HTTP endpoint")
-			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"status":"success"}`))
-		})
-		agent.logger.Info("Registered endpoint: POST %s", addContextPath)
-	}
-
-	// Register get messages endpoint
-	getMessagesPath := agent.serverConfig.GetMessagesPath
-	if getMessagesPath != "" {
-		mux.HandleFunc("GET "+getMessagesPath, func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-
-			// Encode messages to JSON
-			if err := json.NewEncoder(w).Encode(agent.Messages); err != nil {
-				agent.logger.Error("Error encoding messages: %v", err)
-				w.WriteHeader(http.StatusInternalServerError)
-				w.Write([]byte(`{"status":"error","message":"failed to encode messages"}`))
-				return
-			}
-
-			agent.logger.Debug("Messages retrieved via HTTP endpoint")
-		})
-		agent.logger.Info("Registered endpoint: GET %s", getMessagesPath)
-	}
-
-	agent.httpServer = &http.Server{
-		Addr:    agent.serverConfig.Address,
-		Handler: mux,
-	}
-
-	// Setup signal handling for graceful shutdown
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
-
-	// Channel to listen for errors from server
-	serverErrors := make(chan error, 1)
-
-	// Start the server in a goroutine
-	go func() {
-		agent.logger.Info("Starting HTTP server on %s (Press Ctrl+C to stop)", agent.serverConfig.Address)
-		serverErrors <- agent.httpServer.ListenAndServe()
-	}()
-
-	// Wait for either context cancellation, signal, or server error
-	select {
-	case err := <-serverErrors:
-		if err != nil && err != http.ErrServerClosed {
-			return err
-		}
-		return nil
-	case sig := <-sigChan:
-		agent.logger.Info("Received signal: %v", sig)
-		return agent.Stop()
-	case <-serverCtx.Done():
-		return agent.Stop()
-	}
+func (agent *ChatAgent) GetChatFlowWithMemory() *core.Flow[*agents.ChatRequest, *agents.ChatResponse, struct{}] {
+	return agent.chatFlowWithMemory
 }
 
-// Stop gracefully shuts down the HTTP server with a 5-second timeout
-func (agent *ChatAgent) Stop() error {
-	if agent.httpServer == nil {
-		return fmt.Errorf("server is not running")
-	}
-
-	agent.logger.Info("Shutting down server gracefully...")
-
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	if err := agent.httpServer.Shutdown(shutdownCtx); err != nil {
-		return fmt.Errorf("error during shutdown: %w", err)
-	}
-
-	agent.logger.Info("Server stopped")
-	return nil
-}
-
-// CompressContext compresses the conversation history using the configured compressor agent
-// Returns an error if no compressor agent is configured
-// The compression result is returned as a ChatResponse
-// After compression, the agent's messages are replaced with a single system message containing the compressed context
-func (agent *ChatAgent) CompressContext() (agents.ChatResponse, error) {
-	if agent.compressorAgent == nil {
-		return agents.ChatResponse{}, fmt.Errorf("no compressor agent configured, use EnableContextCompression option")
-	}
-
-	response, err := agent.compressorAgent.CompressMessages(agent.Messages)
-	if err != nil {
-		return agents.ChatResponse{}, err
-	}
-
-	// Replace the agent's messages with the compressed context
-	compressedMessages := []*ai.Message{
-		ai.NewSystemTextMessage(strings.TrimSpace(response.Text)),
-	}
-	if err := agent.ReplaceMessagesWith(compressedMessages); err != nil {
-		return agents.ChatResponse{}, err
-	}
-
-	return response, nil
-}
-
-// CompressContextStream compresses the conversation history using streaming with the configured compressor agent
-// Returns an error if no compressor agent is configured
-// The callback function is called for each streamed chunk
-// The final compression result is returned as a ChatResponse
-// After compression, the agent's messages are replaced with a single system message containing the compressed context
-func (agent *ChatAgent) CompressContextStream(callback func(agents.ChatResponse) error) (agents.ChatResponse, error) {
-	if agent.compressorAgent == nil {
-		return agents.ChatResponse{}, fmt.Errorf("no compressor agent configured, use EnableContextCompression option")
-	}
-
-	response, err := agent.compressorAgent.CompressMessagesStream(agent.Messages, callback)
-	if err != nil {
-		return agents.ChatResponse{}, err
-	}
-
-	// Replace the agent's messages with the compressed context
-	compressedMessages := []*ai.Message{
-		ai.NewSystemTextMessage(strings.TrimSpace(response.Text)),
-	}
-	if err := agent.ReplaceMessagesWith(compressedMessages); err != nil {
-		return agents.ChatResponse{}, err
-	}
-
-	return response, nil
+func (agent *ChatAgent) GetChatStreamFlowWithMemory() *core.Flow[*agents.ChatRequest, *agents.ChatResponse, agents.ChatResponse] {
+	return agent.chatStreamFlowWithMemory
 }
 
 func displayConversationHistory(agent *ChatAgent) {

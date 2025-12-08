@@ -9,7 +9,7 @@ import (
 	"github.com/snipwise/snip-sdk/snip/toolbox/env"
 	"github.com/snipwise/snip-sdk/snip/agents"
 	"github.com/snipwise/snip-sdk/snip/models"
-	"github.com/snipwise/snip-sdk/snip/chat"
+	"github.com/snipwise/snip-sdk/snip/chatserver"
 	"github.com/snipwise/snip-sdk/snip/remote"
 )
 
@@ -19,7 +19,7 @@ func main() {
 	//chatModelId := env.GetEnvOrDefault("CHAT_MODEL", "hf.co/menlo/jan-nano-gguf:q4_k_m")
 	chatModelId := env.GetEnvOrDefault("CHAT_MODEL", "ai/qwen2.5:0.5B-F16")
 	// Create an agentOne with both chat flows enabled and HTTP server configuration
-	agentOne, err := chat.NewChatAgent(ctx,
+	agentOne, err := chatserver.NewChatAgentServer(ctx,
 		agents.AgentConfig{
 			Name:               "AGENT_ONE",
 			SystemInstructions: "You are a helpful assistant.",
@@ -30,9 +30,7 @@ func main() {
 			Temperature: 0.5,
 			TopP:        0.9,
 		},
-		chat.EnableChatFlowWithMemory(),
-		chat.EnableChatStreamFlowWithMemory(),
-		chat.EnableServer(chat.ConfigHTTP{
+		chatserver.EnableServer(chatserver.ConfigHTTP{
 			Address:            "0.0.0.0:9100",
 			ChatFlowPath:       "/api/chat",
 			ChatStreamFlowPath: "/api/chat-stream",
@@ -49,7 +47,7 @@ func main() {
 	// Create a remote agent that connects to the server
 	remoteAgent := remote.NewRemoteAgent(
 		"Remote Knowledge Agent",
-		chat.ConfigHTTP{
+		chatserver.ConfigHTTP{
 			Address:            "0.0.0.0:9100",
 			ChatFlowPath:       "/api/chat",
 			ChatStreamFlowPath: "/api/chat-stream",

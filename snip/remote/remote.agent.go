@@ -12,7 +12,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/snipwise/snip-sdk/snip/agents"
-	"github.com/snipwise/snip-sdk/snip/chat"
+	"github.com/snipwise/snip-sdk/snip/chatserver"
 )
 
 // Structure for flow input
@@ -31,26 +31,26 @@ type RemoteAgent struct {
 	Name                string
 }
 
-func NewRemoteAgent(name string, config chat.ConfigHTTP) *RemoteAgent {
+func NewRemoteAgent(name string, config chatserver.ConfigHTTP) *RemoteAgent {
 	// Build full URLs from Address and paths
 	baseURL := "http://" + config.Address
 
 	// Set default information path if not provided
 	informationPath := config.InformationPath
 	if informationPath == "" {
-		informationPath = chat.DefaultInformationPath
+		informationPath = chatserver.DefaultInformationPath
 	}
 
 	// Set default add context path if not provided
 	addContextPath := config.AddContextPath
 	if addContextPath == "" {
-		addContextPath = chat.DefaultAddSystemMessagePath
+		addContextPath = chatserver.DefaultAddSystemMessagePath
 	}
 
 	// Set default get messages path if not provided
 	getMessagesPath := config.GetMessagesPath
 	if getMessagesPath == "" {
-		getMessagesPath = chat.DefaultGetMessagesPath
+		getMessagesPath = chatserver.DefaultGetMessagesPath
 	}
 
 	return &RemoteAgent{
